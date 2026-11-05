@@ -12,6 +12,8 @@
   源码无需区分；`gbcodec_cpp` 的 CMake usage requirement 相应改为 `cxx_std_11`。
 - 新增 `test_cpp11`（以 C++11 编译）并用 C++11 消费者验证安装包，CI 同时覆盖
   两种标准模式。
+- `gbcodec::string_view` 与其能力探测宏移到独立头文件 `<gbcodec/string_view.hpp>`，
+  `gbcodec.hpp` 只保留转换 API 与异常类型。
 
 ### 修复
 

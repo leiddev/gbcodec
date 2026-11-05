@@ -4,6 +4,7 @@
  * Copyright (c) 2016-2026 leid
  * SPDX-License-Identifier: ISC
  */
+#include <gbcodec/string_view.hpp> /* must be self-contained; include it first */
 #include <gbcodec/gbcodec.hpp>
 
 #include <cstdio>
@@ -84,6 +85,28 @@ void test_exception()
     CHECK(std::strcmp(gbcodec::status_string(GBC_E_TRUNCATED), "truncated byte sequence") == 0);
 }
 
+void test_string_view()
+{
+    const gbcodec::string_view empty;
+    const gbcodec::string_view literal("abc");
+    const std::string text("hello");
+    const gbcodec::string_view from_string(text);
+    const gbcodec::string_view slice(literal.data(), 2u);
+
+    CHECK(empty.empty());
+    CHECK(empty.size() == 0u);
+    CHECK(empty.data() == nullptr);
+
+    CHECK(!literal.empty());
+    CHECK(literal.size() == 3u);
+
+    CHECK(from_string.data() == text.data());
+    CHECK(from_string.size() == text.size());
+
+    CHECK(slice.size() == 2u);
+    CHECK(slice.data() == literal.data());
+}
+
 void test_empty_strings()
 {
     CHECK(gbcodec::to_gb2312("").empty());
@@ -122,6 +145,7 @@ int main()
     test_roundtrip();
     test_try_variants();
     test_exception();
+    test_string_view();
     test_empty_strings();
     test_default_constructed_view();
 

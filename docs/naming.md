@@ -25,7 +25,7 @@
 
 - 公开头文件放在 `include/gbcodec/`，私有实现头文件放在 `src/detail/`。
 - 文件名一律 `snake_case`，与模块名对应：`utf8.h`、`utf16.h`、`gb2312.h`、
-  `convert.h`、`status.h`、`export.h`、`version.h`。
+  `convert.h`、`status.h`、`export.h`、`version.h`、`string_view.hpp`。
 - 实现文件与头文件同名：`src/utf8.c` 实现 `include/gbcodec/utf8.h`。
 - C++ 封装使用 `.hpp` 后缀（`gbcodec.hpp`），提醒使用者这是 C++ 头文件。
 - 头文件保护宏为 `GBCODEC_<文件名>_H`，例如 `GBCODEC_UTF8_H`。不使用
@@ -35,7 +35,9 @@
 
 - **C 层面导出的常量**使用 `GBC_` 前缀，例如 `GBC_OK`、`GBC_E_UNMAPPABLE`。
 - **构建配置与版本相关的宏**使用 `GBCODEC_` 前缀，例如 `GBCODEC_SHARED`、
-  `GBCODEC_BUILDING_LIBRARY`、`GBCODEC_VERSION_MAJOR`。
+  `GBCODEC_BUILDING_LIBRARY`、`GBCODEC_VERSION_MAJOR`，以及
+  `<gbcodec/string_view.hpp>` 中的能力探测宏 `GBCODEC_USE_STD_STRING_VIEW`
+  （为 1 时表示 C++17 下直接使用 `std::string_view`）。
 - 只影响库自身编译的宏（`GBCODEC_BUILDING_LIBRARY`）保持 `PRIVATE`，不污染
   使用者的编译选项。
 - 宏全部大写，单词之间用下划线分隔。

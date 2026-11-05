@@ -84,6 +84,7 @@ int main()
 | `<gbcodec/convert.h>` | `gbc_utf8_to_gb2312`、`gbc_gb2312_to_utf8` 及其 `_z` / `_capacity` 变体 |
 | `<gbcodec/status.h>` | `gbc_status` 错误码与 `gbc_status_string` |
 | `<gbcodec/gbcodec.hpp>` | C++ 封装 `gbcodec::to_gb2312` 等（头文件形式，C++11 起；C++17 下自动使用 `std::string_view`） |
+| `<gbcodec/string_view.hpp>` | `gbcodec::string_view`：C++17 下是 `std::string_view` 的别名，C++11 下是等价的只读视图 |
 
 约定：
 
