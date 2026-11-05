@@ -4,6 +4,7 @@
 set(GBCODEC_C_TESTS
     test_convert
     test_gb2312
+    test_replace
     test_roundtrip
     test_utf8
     test_utf16)

@@ -113,6 +113,66 @@ void test_empty_strings()
     CHECK(gbcodec::from_gb2312("").empty());
 }
 
+void test_lossy_conversion()
+{
+    /* 中文😀abc */
+    const std::string emoji_input("\xE4\xB8\xAD\xE6\x96\x87\xF0\x9F\x98\x80" "abc");
+    std::size_t replaced = 0u;
+
+    /* "中文😀abc" -> "中文?abc" */
+    const std::string lossy = gbcodec::to_gb2312(emoji_input, U'?', replaced);
+    CHECK(lossy.size() == 8u);
+    CHECK(replaced == 1u);
+    CHECK(lossy.compare(0u, 4u, std::string(GB2312_TEXT, 4u)) == 0);
+    CHECK(lossy[4] == '?');
+
+    /* A zero replacement deletes the character; the count still reports it. */
+    replaced = 0u;
+    const std::string deleted = gbcodec::to_gb2312(emoji_input, 0u, replaced);
+    CHECK(deleted == std::string(GB2312_TEXT));
+    CHECK(replaced == 1u);
+
+    /* Unassigned GB2312 pairs are substituted on the way back. */
+    replaced = 0u;
+    const std::string decoded =
+        gbcodec::from_gb2312(std::string("\xD6\xD0\xAA\xA1", 4u), U'\uFFFD', replaced);
+    CHECK(replaced == 1u);
+    CHECK(decoded == std::string("\xE4\xB8\xAD\xEF\xBF\xBD", 6u));
+
+    /* An unusable replacement is an argument error, even for empty input. */
+    bool caught = false;
+    try {
+        static_cast<void>(gbcodec::to_gb2312("", U'\u20AC'));
+    } catch (const gbcodec::error &failure) {
+        caught = true;
+        CHECK(failure.status() == GBC_E_INVALID_ARGUMENT);
+    }
+    CHECK(caught);
+
+    /* The non-throwing variants behave the same way. */
+    std::string output;
+    gbc_status status = GBC_OK;
+    std::size_t count = 0u;
+    CHECK(gbcodec::try_to_gb2312("\xF0\x9F\x98\x80", U'?', output, &count, &status));
+    CHECK(status == GBC_OK);
+    CHECK(output == "?");
+    CHECK(count == 1u);
+
+    output = "stale";
+    count = 99u;
+    CHECK(!gbcodec::try_to_gb2312("\xF0\x9F\x98\x80", U'\u20AC', output, &count, &status));
+    CHECK(status == GBC_E_INVALID_ARGUMENT);
+    CHECK(output.empty());
+    CHECK(count == 99u);
+
+    /* Malformed input still fails. */
+    CHECK(!gbcodec::try_to_gb2312("\xFF", U'?', output, &count, &status));
+    CHECK(status == GBC_E_INVALID_SEQUENCE);
+
+    /* A default-constructed view with a valid replacement is an empty result. */
+    CHECK(gbcodec::to_gb2312(gbcodec::string_view(), U'?').empty());
+}
+
 /*
  * A default-constructed std::string_view is empty but has a null data()
  * pointer; it must behave exactly like "" rather than being rejected by the
@@ -148,6 +208,7 @@ int main()
     test_string_view();
     test_empty_strings();
     test_default_constructed_view();
+    test_lossy_conversion();
 
     std::printf("C++ wrapper: %s\n", g_failures == 0 ? "all checks passed" : "checks failed");
     return g_failures == 0 ? 0 : 1;
