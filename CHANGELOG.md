@@ -3,7 +3,10 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
-## [Unreleased]
+## [1.1.0] - 2026-11-05
+
+向后兼容的特性更新：C++ 封装的最低标准从 C++17 降到 C++11，并修复了空视图的
+边界行为。
 
 ### 变更
 
@@ -121,5 +124,5 @@
 
 - 导入历史实现作为基线提交，保留原始文件与行为以便对照。
 
-[Unreleased]: https://github.com/leiddev/gbcodec/compare/v1.0.0...HEAD
+[1.1.0]: https://github.com/leiddev/gbcodec/releases/tag/v1.1.0
 [1.0.0]: https://github.com/leiddev/gbcodec/releases/tag/v1.0.0
