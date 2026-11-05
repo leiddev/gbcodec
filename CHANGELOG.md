@@ -3,6 +3,13 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [Unreleased]
+
+### 新增
+
+- 文档 `docs/errors.md`：三个数据类错误码（非法序列 / 截断 / 无法映射）的判定边界
+  与字节级示例，以及 `gbc_<源>_to_<目标>`、`_capacity`、`_z` 三种调用形态的用法。
+
 ## [1.1.0] - 2026-11-05
 
 向后兼容的特性更新：C++ 封装的最低标准从 C++17 降到 C++11，并修复了空视图的
@@ -124,5 +131,6 @@
 
 - 导入历史实现作为基线提交，保留原始文件与行为以便对照。
 
+[Unreleased]: https://github.com/leiddev/gbcodec/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/leiddev/gbcodec/releases/tag/v1.1.0
 [1.0.0]: https://github.com/leiddev/gbcodec/releases/tag/v1.0.0

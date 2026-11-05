@@ -213,6 +213,8 @@ pkg-config --cflags --libs gbcodec
 ## 文档
 
 - [docs/naming.md](docs/naming.md)：库、命名空间、函数与变量的命名约定。
+- [docs/errors.md](docs/errors.md)：错误码的判定边界（非法序列 / 截断 / 无法映射）
+  以及 `_capacity` / `_z` 变体的用法。
 - [docs/compatibility.md](docs/compatibility.md)：GB2312 的覆盖范围，以及与
   GBK / CP936 的差异和无法映射时的处理方式。
 - [CHANGELOG.md](CHANGELOG.md)：版本变更与历史接口的迁移对照。
