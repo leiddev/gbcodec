@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-05
+
+仅构建与示例命名的补丁版本，库的接口与行为与 1.2.0 完全一致。
+
+### 变更
+
+- 示例程序的重命名补上：目标与源文件由 `unicode_example` /
+  `unicode_cpp_example` 改为 `gbcodec_example` / `gbcodec_cpp_example`，至此仓库内
+  所有目标都使用库名。库本身、头文件、导出符号、pkg-config 与 CMake 包配置均未变化。
+
 ## [1.2.0] - 2026-11-05
 
 向后兼容的特性更新：新增可替换无法映射字符的整串转换接口。
@@ -150,7 +160,8 @@
 
 - 导入历史实现作为基线提交，保留原始文件与行为以便对照。
 
-[Unreleased]: https://github.com/leiddev/gbcodec/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/leiddev/gbcodec/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/leiddev/gbcodec/releases/tag/v1.2.1
 [1.2.0]: https://github.com/leiddev/gbcodec/releases/tag/v1.2.0
 [1.1.0]: https://github.com/leiddev/gbcodec/releases/tag/v1.1.0
 [1.0.0]: https://github.com/leiddev/gbcodec/releases/tag/v1.0.0
