@@ -48,6 +48,16 @@ using convert_function = gbc_status (*)(const std::uint8_t *, std::size_t, std::
 inline void run(count_function count, convert_function convert, std::string_view input,
                 std::string &output)
 {
+    /*
+     * A default-constructed std::string_view has a null data() pointer, which
+     * the C API rejects. An empty input always yields an empty output, so
+     * short-circuit it here to keep "" and std::string_view{} equivalent.
+     */
+    if (input.empty()) {
+        output.clear();
+        return;
+    }
+
     const auto *const src = reinterpret_cast<const std::uint8_t *>(input.data());
     std::size_t needed = 0;
     gbc_status status = count(src, input.size(), &needed);

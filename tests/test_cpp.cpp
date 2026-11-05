@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <string_view>
 
 namespace {
 
@@ -81,6 +82,31 @@ void test_empty_strings()
     CHECK(gbcodec::from_gb2312("").empty());
 }
 
+/*
+ * A default-constructed std::string_view is empty but has a null data()
+ * pointer; it must behave exactly like "" rather than being rejected by the
+ * C API.
+ */
+void test_default_constructed_view()
+{
+    const std::string_view empty_view;
+    std::string output = "stale";
+    gbc_status status = GBC_E_TRUNCATED;
+
+    CHECK(gbcodec::to_gb2312(empty_view).empty());
+    CHECK(gbcodec::from_gb2312(empty_view).empty());
+
+    CHECK(gbcodec::try_to_gb2312(empty_view, output, &status));
+    CHECK(output.empty());
+    CHECK(status == GBC_OK);
+
+    output = "stale";
+    status = GBC_E_TRUNCATED;
+    CHECK(gbcodec::try_from_gb2312(empty_view, output, &status));
+    CHECK(output.empty());
+    CHECK(status == GBC_OK);
+}
+
 } /* namespace */
 
 int main()
@@ -89,6 +115,7 @@ int main()
     test_try_variants();
     test_exception();
     test_empty_strings();
+    test_default_constructed_view();
 
     std::printf("C++ wrapper: %s\n", g_failures == 0 ? "all checks passed" : "checks failed");
     return g_failures == 0 ? 0 : 1;

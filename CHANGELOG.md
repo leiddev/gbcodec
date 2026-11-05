@@ -3,6 +3,13 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 与
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [Unreleased]
+
+### 修复
+
+- C++ 封装：默认构造的 `std::string_view`（`data()` 为 `nullptr`）现在与空字符串
+  行为一致，直接返回空结果，不再被 C 层的空指针检查拒绝。
+
 ## [1.0.0] - 2026-11-05
 
 第一个正式版本。相对历史实现（0.0.0 基线）而言，这一版重建了码表、修复了内存
@@ -104,4 +111,5 @@
 
 - 导入历史实现作为基线提交，保留原始文件与行为以便对照。
 
+[Unreleased]: https://github.com/leiddev/gbcodec/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/leiddev/gbcodec/releases/tag/v1.0.0
