@@ -46,73 +46,59 @@ Windows 的代码页 936（CP936）与 GBK 基本等价，因此从 CP936 数据
 被截断（`GBC_E_TRUNCATED`）不属于「无法映射」，也不应该通过替换字符来掩盖，
 三种错误码的判定边界见 [errors.md](errors.md)。
 
-`gbcodec` 不做任何隐式替换（不会把无法映射的字符换成 `?` 或全角问号），原因
-是隐式替换会静默改变数据。调用方需要显式决定策略：
+`gbcodec` 的**严格版**函数不做任何隐式替换（不会把无法映射的字符换成 `?` 或全角
+问号），原因是隐式替换会静默改变数据。需要替换时显式改用 `_replace` 变体，替换字符
+由调用方以 Unicode 码点给出：
 
-- **报错**：直接使用 `gbc_utf8_to_gb2312` / `gbc_utf8_to_gb2312_z`，检查返回的
-  `GBC_E_UNMAPPABLE`（同一次调用也可能返回 `GBC_E_INVALID_SEQUENCE` 等，需分别处理）；
-- **替换**：自行遍历输入，用 `gbc_utf8_decode` + `gbc_gb2312_encode` 逐字符
-  转换，`gbc_gb2312_encode` 返回 0 时写入替代字符：`?`（`0x3F`，1 字节）或
-  全角问号 `A3 BF`（`U+FF1F`，2 字节）；
-- **跳过**：逐字符转换时直接丢弃无法映射的码点。
-
-注意「替换」与「跳过」只适用于 `gbc_utf8_decode` **成功**返回的字符；解码失败的
-字节必须单独处理，否则会把损坏的数据当成「无法映射」悄悄吞掉。
-
-「替换」策略的完整写法：
+| 策略 | 用法 |
+| --- | --- |
+| 报错 | `gbc_utf8_to_gb2312` / `gbc_utf8_to_gb2312_z`，检查 `GBC_E_UNMAPPABLE` |
+| 替换 | `gbc_utf8_to_gb2312_replace` / `_replace_z`，替换码点传 `'?'`（`0x3F`）或全角问号 `0xFF1F`（`A3 BF`） |
+| 跳过 | 同上，替换码点传 `0` |
 
 ```c
 #include <gbcodec/gbcodec.h>
 
-/* 把 UTF-8 转成 GB2312，无法映射的字符替换为全角问号 A3 BF。
- * 输入损坏或截断时直接返回对应错误，不做替换。 */
-static gbc_status convert_with_replacement(const uint8_t *src, size_t src_length,
-                                           uint8_t *dst, size_t dst_capacity,
-                                           size_t *out_length)
-{
-    size_t offset = 0;
-    size_t written = 0;
+uint8_t dst[64];
+size_t length = 0;
+size_t replaced = 0;
 
-    while (offset < src_length) {
-        uint32_t code_point = 0;
-        size_t consumed = 0;
-        uint8_t encoded[2] = {0};
-        size_t produced;
-        gbc_status status = gbc_utf8_decode(src + offset, src_length - offset,
-                                            &code_point, &consumed);
-        if (status != GBC_OK) {
-            return status; /* GBC_E_INVALID_SEQUENCE 或 GBC_E_TRUNCATED */
-        }
-
-        produced = gbc_gb2312_encode(code_point, encoded);
-        if (produced == 0) {
-            encoded[0] = 0xA3; /* 全角问号 U+FF1F */
-            encoded[1] = 0xBF;
-            produced = 2;
-        }
-
-        if (written + produced + 1 > dst_capacity) {
-            return GBC_E_BUFFER_TOO_SMALL;
-        }
-        dst[written] = encoded[0];
-        if (produced > 1) {
-            dst[written + 1] = encoded[1];
-        }
-        written += produced;
-        offset += consumed;
-    }
-
-    if (dst_capacity > 0) {
-        dst[written] = 0;
-    }
-    *out_length = written;
-    return GBC_OK;
+/* 无法映射的字符替换为全角问号 U+FF1F。 */
+gbc_status status = gbc_utf8_to_gb2312_replace_z(text, (char *)dst, sizeof dst,
+                                                 0xFF1Fu, &length, &replaced);
+switch (status) {
+case GBC_OK:
+    printf("%zu bytes, %zu characters replaced\n", length, replaced);
+    break;
+case GBC_E_INVALID_ARGUMENT:
+    /* 替换码点本身无法用 GB2312 表示（0xFF1F 可以，不会走到这里） */
+    break;
+default:
+    /* GBC_E_INVALID_SEQUENCE / GBC_E_TRUNCATED / GBC_E_BUFFER_TOO_SMALL：
+       输入本身或缓冲区有问题，替换策略不介入，dst[0] 已被置 0 */
+    break;
 }
 ```
 
-C++ 封装同样不替换：`gbcodec::to_gb2312` 抛出 `gbcodec::error`（`status()` 可能是
-`GBC_E_UNMAPPABLE`，也可能是其它错误），`gbcodec::try_to_gb2312` 返回 `false`，
-并把原因写入可选的 `gbc_status`。
+替换码点传 `0` 即「跳过」：该字符被删除，`replaced` 仍然会计数。注意区分这两种
+「变短」的含义——`out_length` 是实际写入的字节数，`out_replaced` 是被处理的字符数，
+两者互不推导。
+
+反方向同样存在无法映射的情况：GB2312 中未分配的区位（如 `AA A1`）解码失败，
+用 `gbc_gb2312_to_utf8_replace` 把它换成 `U+FFFD`（`EF BF BD`）即可：
+
+```c
+gbc_status status = gbc_gb2312_to_utf8_replace_z(gb2312, (char *)dst, sizeof dst,
+                                                 0xFFFDu, &length, &replaced);
+```
+
+两个方向都只处理 `GBC_E_UNMAPPABLE`。非法序列与截断不会因为启用替换而变成「可恢复」
+错误：替换字符的单位是「一个已经成功识别出的字符」，而损坏字节的长度是未知的，
+猜测只会把错误扩散到后面的数据。
+
+C++ 封装提供对应的重载，如 `gbcodec::to_gb2312(view, U'\uFF1F')`、
+`gbcodec::from_gb2312(view, U'\uFFFD')`，第三个参数可选出参接收替换计数；
+非抛出版本为 `gbcodec::try_to_gb2312(view, U'?', out, &replaced, &status)`。
 
 ## 与 UTF-16 的关系
 

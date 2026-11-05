@@ -91,8 +91,10 @@
 前三个输入本身都是合法的 UTF-8，只是 GB2312 中没有这些字符。如果把这类情况报成
 `GBC_E_INVALID_SEQUENCE`，调用方会误以为数据损坏，因此必须区分开。
 
-`gbcodec` 不做隐式替换（不会自动写成 `?`）。替换、跳过还是报错由调用方决定，
-具体策略见 [compatibility.md](compatibility.md#遇到无法映射的字符怎么办)。
+`gbcodec` 的严格版函数不做隐式替换（不会自动写成 `?`）；需要替换时用
+`gbc_utf8_to_gb2312_replace` / `gbc_gb2312_to_utf8_replace`，由调用方指定替换码点，
+这两组函数**永不返回 `GBC_E_UNMAPPABLE`**。非法序列与截断在它们这里仍然是致命错误。
+策略细节见 [compatibility.md](compatibility.md#遇到无法映射的字符怎么办)。
 
 ## 六、错误码判断示例
 

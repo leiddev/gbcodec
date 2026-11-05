@@ -60,7 +60,9 @@ gbc_<领域>_<动作>[_<变体>]
   - 领域之间的转换使用 `a_to_b` 形式。
 - 变体后缀：
   - `_capacity`：只计算所需字节数，不写缓冲区；
+  - `_replace`：无法映射的字符按调用方给出的码点替换（`0` 表示删除）；
   - `_z`：接收以 NUL 结尾的字符串（历史 C 风格接口）。
+  后缀可以叠加，顺序固定为 `_replace_z`。
 
 示例：
 
@@ -72,6 +74,8 @@ gbc_<领域>_<动作>[_<变体>]
 | `gbc_utf8_to_gb2312` | 显式长度的 UTF-8 → GB2312 转换 |
 | `gbc_utf8_to_gb2312_z` | NUL 结尾的 UTF-8 → GB2312 转换 |
 | `gbc_utf8_to_gb2312_capacity` | 查询转换结果长度 |
+| `gbc_utf8_to_gb2312_replace` | 无法映射的字符按给定码点替换后转换 |
+| `gbc_gb2312_to_utf8_replace_z` | 同上，接收 NUL 结尾的 GB2312 字符串 |
 
 返回值的形状只有三种，不允许出现第四种：
 
@@ -92,7 +96,8 @@ gbc_<领域>_<动作>[_<变体>]
 ## 变量与参数
 
 - 全部 `snake_case`，不使用匈牙利命名法。
-- 输出参数统一加 `out_` 前缀：`out_code_point`、`out_consumed`、`out_length`。
+- 输出参数统一加 `out_` 前缀：`out_code_point`、`out_consumed`、`out_length`、
+  `out_replaced`。
 - 带单位的参数在名字里带上单位或语义：`src_length`、`dst_capacity`、
   `src_bytes`、`encoded`。容量参数一律指**包含结尾 NUL 的总字节数**。
 - 局部变量尽量短但可读：`lead`、`trail`、`code_point`、`consumed`、`written`。

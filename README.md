@@ -81,7 +81,7 @@ int main()
 | `<gbcodec/utf8.h>` | `gbc_utf8_decode` / `gbc_utf8_encode` |
 | `<gbcodec/utf16.h>` | `gbc_utf16_decode` / `gbc_utf16_encode` |
 | `<gbcodec/gb2312.h>` | `gbc_gb2312_decode` / `gbc_gb2312_encode` |
-| `<gbcodec/convert.h>` | `gbc_utf8_to_gb2312`、`gbc_gb2312_to_utf8` 及其 `_z` / `_capacity` 变体 |
+| `<gbcodec/convert.h>` | `gbc_utf8_to_gb2312`、`gbc_gb2312_to_utf8` 及其 `_z` / `_capacity` / `_replace` 变体 |
 | `<gbcodec/status.h>` | `gbc_status` 错误码与 `gbc_status_string` |
 | `<gbcodec/gbcodec.hpp>` | C++ 封装 `gbcodec::to_gb2312` 等（头文件形式，C++11 起；C++17 下自动使用 `std::string_view`） |
 | `<gbcodec/string_view.hpp>` | `gbcodec::string_view`：C++17 下是 `std::string_view` 的别名，C++11 下是等价的只读视图 |
@@ -98,11 +98,32 @@ int main()
 | 值 | 含义 |
 | --- | --- |
 | `GBC_OK` | 成功（值为 0） |
-| `GBC_E_INVALID_ARGUMENT` | 传入了 NULL 指针 |
+| `GBC_E_INVALID_ARGUMENT` | 参数非法：NULL 指针，或替换码点无法用目标编码表示 |
 | `GBC_E_INVALID_SEQUENCE` | 输入不是合法的字节序列 |
 | `GBC_E_TRUNCATED` | 输入在序列中间结束 |
 | `GBC_E_UNMAPPABLE` | 字符在目标字符集中没有对应项 |
 | `GBC_E_BUFFER_TOO_SMALL` | 目标缓冲区不足（含结尾 NUL） |
+
+### 有损转换
+
+`gbc_utf8_to_gb2312_replace` / `gbc_gb2312_to_utf8_replace`（以及 `_z` 变体）在字符
+无法用目标编码表示时用调用者给出的码点替换它，而不是返回 `GBC_E_UNMAPPABLE`：
+
+```c
+uint8_t buffer[64];
+size_t length = 0;
+size_t replaced = 0;
+
+/* 把 emoji 之类的字符换成 '?'；传入 0 表示直接删除该字符。 */
+gbc_status status = gbc_utf8_to_gb2312_replace_z("中文😀abc", (char *)buffer, sizeof buffer,
+                                                 '?', &length, &replaced);
+```
+
+- 替换码点是 Unicode 码点，由库按目标编码写入；无法用目标编码表示时返回
+  `GBC_E_INVALID_ARGUMENT`。
+- 只处理 `GBC_E_UNMAPPABLE`：非法序列和截断仍然整体失败，不会静默丢字节。
+- 输出不会超过输入，因此 UTF-8 → GB2312 用 `src_length + 1` 字节、GB2312 → UTF-8 用
+  `3 * src_length + 1` 字节就总是够用，不需要预先测量。
 
 ## 构建
 

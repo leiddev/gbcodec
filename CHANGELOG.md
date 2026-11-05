@@ -5,17 +5,29 @@
 
 ## [Unreleased]
 
-### 修复
+## [1.2.0] - 2026-11-05
 
-- 文档：全角问号（`U+FF1F`）的 GB2312 码由错误的 `A1 BA` 更正为 `A3 BF`
-  （`A1 BA` 实际是 `U+300E`）；同时明确 `docs/compatibility.md` 的「无法映射」
-  小节只讨论 `GBC_E_UNMAPPABLE`，与输入非法 / 截断区分开，并补充可编译的
-  替换策略示例。
+向后兼容的特性更新：新增可替换无法映射字符的整串转换接口。
 
 ### 新增
 
+- 有损转换 `gbc_utf8_to_gb2312_replace`、`gbc_gb2312_to_utf8_replace` 及各自的
+  `_replace_z` 变体：遇到 `GBC_E_UNMAPPABLE` 时按调用方给出的 Unicode 码点替换
+  （传 `0` 表示删除），并通过可选的 `out_replaced` 报告替换字符数。替换码点无法用
+  目标编码表示时返回 `GBC_E_INVALID_ARGUMENT`；非法序列与截断仍然是致命错误。
+  输出长度有上界（UTF-8 → GB2312 为 `src_length + 1`，反方向为
+  `3 * src_length + 1`），因此不需要 `_capacity` 形式的测量调用。
+- C++ 封装新增重载 `gbcodec::to_gb2312(view, replacement[, size_t &replaced])`、
+  `gbcodec::from_gb2312(...)` 与对应的 `try_` 版本。
 - 文档 `docs/errors.md`：三个数据类错误码（非法序列 / 截断 / 无法映射）的判定边界
   与字节级示例，以及 `gbc_<源>_to_<目标>`、`_capacity`、`_z` 三种调用形态的用法。
+- `docs/compatibility.md` 的「无法映射」小节改为演示 `_replace` 接口。
+
+### 修复
+
+- 文档：全角问号（`U+FF1F`）的 GB2312 码由错误的 `A1 BA` 更正为 `A3 BF`
+  （`A1 BA` 实际是 `U+300E`）；同时明确该小节只讨论 `GBC_E_UNMAPPABLE`，
+  与输入非法 / 截断区分开。
 
 ## [1.1.0] - 2026-11-05
 
@@ -138,6 +150,7 @@
 
 - 导入历史实现作为基线提交，保留原始文件与行为以便对照。
 
-[Unreleased]: https://github.com/leiddev/gbcodec/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/leiddev/gbcodec/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/leiddev/gbcodec/releases/tag/v1.2.0
 [1.1.0]: https://github.com/leiddev/gbcodec/releases/tag/v1.1.0
 [1.0.0]: https://github.com/leiddev/gbcodec/releases/tag/v1.0.0
