@@ -41,18 +41,78 @@ Windows 的代码页 936（CP936）与 GBK 基本等价，因此从 CP936 数据
 
 ## 遇到无法映射的字符怎么办
 
+本节只讨论 `GBC_E_UNMAPPABLE`：输入本身完全合法，只是目标字符集没有对应字符
+（例如 `€` `U+20AC`、`😀` `U+1F600`）。输入损坏（`GBC_E_INVALID_SEQUENCE`）或
+被截断（`GBC_E_TRUNCATED`）不属于「无法映射」，也不应该通过替换字符来掩盖，
+三种错误码的判定边界见 [errors.md](errors.md)。
+
 `gbcodec` 不做任何隐式替换（不会把无法映射的字符换成 `?` 或全角问号），原因
-是隐式替换会静默改变数据。调用方需要显式决定策略（错误码的判定边界见
-[errors.md](errors.md)）：
+是隐式替换会静默改变数据。调用方需要显式决定策略：
 
 - **报错**：直接使用 `gbc_utf8_to_gb2312` / `gbc_utf8_to_gb2312_z`，检查返回的
-  `GBC_E_UNMAPPABLE`；
+  `GBC_E_UNMAPPABLE`（同一次调用也可能返回 `GBC_E_INVALID_SEQUENCE` 等，需分别处理）；
 - **替换**：自行遍历输入，用 `gbc_utf8_decode` + `gbc_gb2312_encode` 逐字符
-  转换，对返回 0 的码点写入 `?`（`0x3F`）或全角问号 `A1 BA`；
+  转换，`gbc_gb2312_encode` 返回 0 时写入替代字符：`?`（`0x3F`，1 字节）或
+  全角问号 `A3 BF`（`U+FF1F`，2 字节）；
 - **跳过**：逐字符转换时直接丢弃无法映射的码点。
 
-C++ 封装同样不替换：`gbcodec::to_gb2312` 抛出 `gbcodec::error`，
-`gbcodec::try_to_gb2312` 返回 `false`，并把原因写入可选的 `gbc_status`。
+注意「替换」与「跳过」只适用于 `gbc_utf8_decode` **成功**返回的字符；解码失败的
+字节必须单独处理，否则会把损坏的数据当成「无法映射」悄悄吞掉。
+
+「替换」策略的完整写法：
+
+```c
+#include <gbcodec/gbcodec.h>
+
+/* 把 UTF-8 转成 GB2312，无法映射的字符替换为全角问号 A3 BF。
+ * 输入损坏或截断时直接返回对应错误，不做替换。 */
+static gbc_status convert_with_replacement(const uint8_t *src, size_t src_length,
+                                           uint8_t *dst, size_t dst_capacity,
+                                           size_t *out_length)
+{
+    size_t offset = 0;
+    size_t written = 0;
+
+    while (offset < src_length) {
+        uint32_t code_point = 0;
+        size_t consumed = 0;
+        uint8_t encoded[2] = {0};
+        size_t produced;
+        gbc_status status = gbc_utf8_decode(src + offset, src_length - offset,
+                                            &code_point, &consumed);
+        if (status != GBC_OK) {
+            return status; /* GBC_E_INVALID_SEQUENCE 或 GBC_E_TRUNCATED */
+        }
+
+        produced = gbc_gb2312_encode(code_point, encoded);
+        if (produced == 0) {
+            encoded[0] = 0xA3; /* 全角问号 U+FF1F */
+            encoded[1] = 0xBF;
+            produced = 2;
+        }
+
+        if (written + produced + 1 > dst_capacity) {
+            return GBC_E_BUFFER_TOO_SMALL;
+        }
+        dst[written] = encoded[0];
+        if (produced > 1) {
+            dst[written + 1] = encoded[1];
+        }
+        written += produced;
+        offset += consumed;
+    }
+
+    if (dst_capacity > 0) {
+        dst[written] = 0;
+    }
+    *out_length = written;
+    return GBC_OK;
+}
+```
+
+C++ 封装同样不替换：`gbcodec::to_gb2312` 抛出 `gbcodec::error`（`status()` 可能是
+`GBC_E_UNMAPPABLE`，也可能是其它错误），`gbcodec::try_to_gb2312` 返回 `false`，
+并把原因写入可选的 `gbc_status`。
 
 ## 与 UTF-16 的关系
 
