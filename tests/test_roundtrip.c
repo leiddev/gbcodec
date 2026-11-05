@@ -1,73 +1,89 @@
 /*
- * Exhaustive round-trip tests across the whole GB2312 code space.
+ * gbcodec - exhaustive round-trip tests.
  *
  * Copyright (c) 2016-2026 leid
  * SPDX-License-Identifier: ISC
  */
+#include <gbcodec/convert.h>
+#include <gbcodec/gb2312.h>
+
+#include <stddef.h>
+#include <stdint.h>
+
 #include "test_common.h"
-#include "unicode_utility.h"
 
-static void test_two_byte_space(void)
+/* Worst cases: 8178 GB2312 byte pairs and three UTF-8 bytes per character. */
+#define GBC_MAX_GB2312_BYTES (87u * 94u * 2u)
+#define GBC_MAX_UTF8_BYTES (87u * 94u * 3u)
+
+static uint8_t g_gb2312[GBC_MAX_GB2312_BYTES];
+static uint8_t g_utf8[GBC_MAX_UTF8_BYTES];
+static uint8_t g_roundtrip[GBC_MAX_GB2312_BYTES];
+
+/* Builds one string containing every assigned GB2312 character. */
+static size_t build_full_gb2312_string(void)
 {
-    unsigned int lead;
-    unsigned int trail;
-    int mapped = 0;
+    size_t length = 0u;
+    uint32_t lead;
 
-    for (lead = 0x81u; lead <= 0xFEu; ++lead) {
-        for (trail = 0x00u; trail <= 0xFFu; ++trail) {
-            uint8_t source[3];
-            uint8_t utf8[8];
-            uint8_t back[8];
-            int32_t utf8_length;
-            int32_t back_length;
+    for (lead = 0xA1u; lead <= 0xF7u; ++lead) {
+        uint32_t trail;
 
-            source[0] = (uint8_t)lead;
-            source[1] = (uint8_t)trail;
-            source[2] = 0x00;
+        for (trail = 0xA1u; trail <= 0xFEu; ++trail) {
+            const uint8_t bytes[2] = {(uint8_t)lead, (uint8_t)trail};
+            uint32_t code_point = 0u;
+            size_t consumed = 0u;
 
-            utf8_length = GB2312ToUTF8Str(source, utf8, sizeof utf8);
-            if (utf8_length <= 0) {
+            if (gbc_gb2312_decode(bytes, 2u, &code_point, &consumed) != GBC_OK) {
                 continue;
             }
-
-            back_length = UTF8ToGB2312Str(utf8, back, sizeof back);
-            CHECK_EQ(back_length, 2);
-            CHECK_EQ(back[0], lead);
-            CHECK_EQ(back[1], trail);
-            ++mapped;
+            g_gb2312[length] = bytes[0];
+            g_gb2312[length + 1u] = bytes[1];
+            length += 2u;
         }
     }
 
-    printf("mapped two-byte codes: %d\n", mapped);
-    /* 6763 hanzi plus 682 symbols. */
-    CHECK_EQ(mapped, 7445);
+    return length;
 }
 
-static void test_ascii_space(void)
+static void test_full_roundtrip(void)
 {
-    unsigned int value;
+    size_t gb2312_length;
+    size_t utf8_length = 0u;
+    size_t back_length = 0u;
 
-    for (value = 0x01u; value <= 0x7Fu; ++value) {
-        uint8_t source[2];
-        uint8_t gb2312[4];
-        uint8_t utf8[4];
-        int32_t gb_length;
+    gb2312_length = build_full_gb2312_string();
+    CHECK_EQ(gb2312_length, 7445u * 2u);
 
-        source[0] = (uint8_t)value;
-        source[1] = 0x00;
+    CHECK_EQ(gbc_gb2312_to_utf8_capacity(g_gb2312, gb2312_length, &utf8_length), GBC_OK);
+    CHECK(utf8_length + 1u <= sizeof(g_utf8));
 
-        gb_length = UTF8ToGB2312Str(source, gb2312, sizeof gb2312);
-        CHECK_EQ(gb_length, 1);
-        CHECK_EQ(gb2312[0], value);
+    CHECK_EQ(gbc_gb2312_to_utf8(g_gb2312, gb2312_length, g_utf8, sizeof(g_utf8), &utf8_length),
+             GBC_OK);
 
-        CHECK_EQ(GB2312ToUTF8Str(gb2312, utf8, sizeof utf8), 1);
-        CHECK_EQ(utf8[0], value);
-    }
+    CHECK_EQ(gbc_utf8_to_gb2312(g_utf8, utf8_length, g_roundtrip, sizeof(g_roundtrip),
+                                &back_length),
+             GBC_OK);
+    CHECK_EQ(back_length, gb2312_length);
+    CHECK_BYTES(g_roundtrip, g_gb2312, gb2312_length);
+}
+
+static void test_ascii_roundtrip(void)
+{
+    static const uint8_t ascii[] = "The quick brown fox jumps over the lazy dog 0123456789";
+    const size_t ascii_length = sizeof(ascii) - 1u;
+    uint8_t buffer[sizeof(ascii)];
+    size_t length = 0u;
+
+    CHECK_EQ(gbc_utf8_to_gb2312(ascii, ascii_length, buffer, sizeof(buffer), &length), GBC_OK);
+    CHECK_EQ(length, ascii_length);
+    CHECK_BYTES(buffer, ascii, ascii_length);
+    CHECK_EQ(buffer[ascii_length], 0u);
 }
 
 int main(void)
 {
-    test_two_byte_space();
-    test_ascii_space();
-    TEST_REPORT();
+    test_full_roundtrip();
+    test_ascii_roundtrip();
+    return gbc_test_result();
 }

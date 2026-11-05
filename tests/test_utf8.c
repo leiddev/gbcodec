@@ -1,158 +1,188 @@
 /*
- * Tests for the UTF-8 codec.
+ * gbcodec - tests for the UTF-8 codec.
  *
  * Copyright (c) 2016-2026 leid
  * SPDX-License-Identifier: ISC
  */
+#include <gbcodec/utf8.h>
+
+#include <stddef.h>
+#include <stdint.h>
+
 #include "test_common.h"
-#include "unicode_utility.h"
 
-static void check_decode(const unsigned char *input, uint32_t expected,
-                         int32_t expected_length)
+static void test_ascii(void)
 {
-    uint8_t buffer[4] = {0, 0, 0, 0};
-    uint32_t code_point = 0xFFFFFFFFu;
-    int32_t consumed;
+    static const uint8_t bytes[] = {'A'};
+    uint32_t code_point = 0u;
+    size_t consumed = 0u;
+    uint8_t encoded[4] = {0u};
+    size_t produced;
 
-    memcpy(buffer, input, (size_t)expected_length);
-    consumed = UTF8ToUnicode(buffer, &code_point);
-    CHECK_EQ(consumed, expected_length);
-    CHECK_EQ(code_point, expected);
+    CHECK_EQ(gbc_utf8_decode(bytes, sizeof(bytes), &code_point, &consumed), GBC_OK);
+    CHECK_EQ(code_point, 0x41u);
+    CHECK_EQ(consumed, 1u);
+
+    produced = gbc_utf8_encode(0x41u, encoded);
+    CHECK_EQ(produced, 1u);
+    CHECK_BYTES(encoded, bytes, 1u);
 }
 
-static void check_decode_invalid(const unsigned char *input, size_t length)
+static void test_two_byte(void)
 {
-    uint8_t buffer[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    uint32_t code_point = 0xFFFFFFFFu;
+    static const uint8_t bytes[] = {0xC2u, 0xA2u};
+    uint32_t code_point = 0u;
+    size_t consumed = 0u;
+    uint8_t encoded[4] = {0u};
 
-    memcpy(buffer, input, length);
-    CHECK_EQ(UTF8ToUnicode(buffer, &code_point), -1);
-    CHECK_EQ(code_point, 0xFFFFFFFFu);
+    CHECK_EQ(gbc_utf8_decode(bytes, sizeof(bytes), &code_point, &consumed), GBC_OK);
+    CHECK_EQ(code_point, 0xA2u);
+    CHECK_EQ(consumed, 2u);
+    CHECK_EQ(gbc_utf8_encode(0xA2u, encoded), 2u);
+    CHECK_BYTES(encoded, bytes, 2u);
 }
 
-static void test_decode_valid(void)
+static void test_three_byte(void)
 {
-    static const unsigned char ascii[] = {0x41, 0x00};
-    static const unsigned char two_byte[] = {0xC2, 0xA9};       /* U+00A9 */
-    static const unsigned char three_byte[] = {0xE4, 0xB8, 0xAD}; /* U+4E2D */
-    static const unsigned char four_byte[] = {0xF0, 0x9F, 0x98, 0x80}; /* U+1F600 */
-    static const unsigned char max_cp[] = {0xF4, 0x8F, 0xBF, 0xBF};    /* U+10FFFF */
-    static const unsigned char boundary[] = {0xF0, 0x90, 0x80, 0x80};  /* U+10000 */
+    static const uint8_t bytes[] = {0xE4u, 0xB8u, 0xADu};
+    uint32_t code_point = 0u;
+    size_t consumed = 0u;
+    uint8_t encoded[4] = {0u};
 
-    check_decode(ascii, 0x41u, 1);
-    check_decode(two_byte, 0x00A9u, 2);
-    check_decode(three_byte, 0x4E2Du, 3);
-    check_decode(four_byte, 0x1F600u, 4);
-    check_decode(max_cp, 0x10FFFFu, 4);
-    check_decode(boundary, 0x10000u, 4);
+    /* U+4E2D CJK UNIFIED IDEOGRAPH-4E2D. */
+    CHECK_EQ(gbc_utf8_decode(bytes, sizeof(bytes), &code_point, &consumed), GBC_OK);
+    CHECK_EQ(code_point, 0x4E2Du);
+    CHECK_EQ(consumed, 3u);
+    CHECK_EQ(gbc_utf8_encode(0x4E2Du, encoded), 3u);
+    CHECK_BYTES(encoded, bytes, 3u);
 }
 
-static void test_decode_invalid(void)
+static void test_four_byte(void)
 {
-    static const unsigned char lone_continuation[] = {0x80};
-    static const unsigned char overlong_two[] = {0xC0, 0xAF};
-    static const unsigned char overlong_two_c1[] = {0xC1, 0xBF};
-    static const unsigned char overlong_three[] = {0xE0, 0x80, 0x80};
-    static const unsigned char overlong_four[] = {0xF0, 0x80, 0x80, 0x80};
-    static const unsigned char surrogate[] = {0xED, 0xA0, 0x80}; /* U+D800 */
-    static const unsigned char too_large[] = {0xF4, 0x90, 0x80, 0x80}; /* U+110000 */
-    static const unsigned char bad_lead_f5[] = {0xF5, 0x80, 0x80, 0x80};
-    static const unsigned char bad_lead_fe[] = {0xFE};
-    static const unsigned char bad_lead_ff[] = {0xFF};
-    static const unsigned char truncated_two[] = {0xE4, 0xB8, 0x00};
-    static const unsigned char truncated_four[] = {0xF0, 0x9F, 0x00, 0x00};
+    static const uint8_t bytes[] = {0xF0u, 0x9Fu, 0x98u, 0x80u};
+    uint32_t code_point = 0u;
+    size_t consumed = 0u;
+    uint8_t encoded[4] = {0u};
 
-    check_decode_invalid(lone_continuation, sizeof lone_continuation);
-    check_decode_invalid(overlong_two, sizeof overlong_two);
-    check_decode_invalid(overlong_two_c1, sizeof overlong_two_c1);
-    check_decode_invalid(overlong_three, sizeof overlong_three);
-    check_decode_invalid(overlong_four, sizeof overlong_four);
-    check_decode_invalid(surrogate, sizeof surrogate);
-    check_decode_invalid(too_large, sizeof too_large);
-    check_decode_invalid(bad_lead_f5, sizeof bad_lead_f5);
-    check_decode_invalid(bad_lead_fe, sizeof bad_lead_fe);
-    check_decode_invalid(bad_lead_ff, sizeof bad_lead_ff);
-    check_decode_invalid(truncated_two, sizeof truncated_two);
-    check_decode_invalid(truncated_four, sizeof truncated_four);
+    /* U+1F600 GRINNING FACE. */
+    CHECK_EQ(gbc_utf8_decode(bytes, sizeof(bytes), &code_point, &consumed), GBC_OK);
+    CHECK_EQ(code_point, 0x1F600u);
+    CHECK_EQ(consumed, 4u);
+    CHECK_EQ(gbc_utf8_encode(0x1F600u, encoded), 4u);
+    CHECK_BYTES(encoded, bytes, 4u);
 }
 
-static void test_decode_null(void)
+static void test_boundaries(void)
 {
-    uint32_t code_point = 0;
-    uint8_t buffer[4] = {0x41, 0, 0, 0};
-
-    CHECK_EQ(UTF8ToUnicode(NULL, &code_point), -1);
-    CHECK_EQ(UTF8ToUnicode(buffer, NULL), -1);
-}
-
-static void test_encode(void)
-{
-    static const struct {
-        uint32_t code_point;
-        const unsigned char *bytes;
-        int32_t length;
-    } cases[] = {
-        {0x0000u, (const unsigned char *)"\x00", 1},
-        {0x0041u, (const unsigned char *)"\x41", 1},
-        {0x007Fu, (const unsigned char *)"\x7F", 1},
-        {0x0080u, (const unsigned char *)"\xC2\x80", 2},
-        {0x07FFu, (const unsigned char *)"\xDF\xBF", 2},
-        {0x0800u, (const unsigned char *)"\xE0\xA0\x80", 3},
-        {0x4E2Du, (const unsigned char *)"\xE4\xB8\xAD", 3},
-        {0xFFFFu, (const unsigned char *)"\xEF\xBF\xBF", 3},
-        {0x10000u, (const unsigned char *)"\xF0\x90\x80\x80", 4},
-        {0x10FFFFu, (const unsigned char *)"\xF4\x8F\xBF\xBF", 4},
-    };
+    static const uint32_t code_points[] = {0x00u, 0x7Fu, 0x80u, 0x7FFu, 0x800u,
+                                           0xFFFu, 0xFFFFu, 0x10000u, 0x10FFFFu};
     size_t index;
 
-    for (index = 0; index < sizeof cases / sizeof cases[0]; ++index) {
-        uint8_t buffer[4] = {0, 0, 0, 0};
-        int32_t length = UnicodeToUTF8(cases[index].code_point, buffer);
+    for (index = 0u; index < sizeof(code_points) / sizeof(code_points[0]); ++index) {
+        uint8_t encoded[4] = {0u};
+        uint32_t decoded = 0u;
+        size_t consumed = 0u;
+        const size_t produced = gbc_utf8_encode(code_points[index], encoded);
 
-        CHECK_EQ(length, cases[index].length);
-        CHECK_BYTES(buffer, cases[index].bytes, (size_t)cases[index].length);
+        CHECK(produced >= 1u && produced <= 4u);
+        CHECK_EQ(gbc_utf8_decode(encoded, produced, &decoded, &consumed), GBC_OK);
+        CHECK_EQ(decoded, code_points[index]);
+        CHECK_EQ(consumed, produced);
     }
 }
 
-static void test_encode_invalid(void)
+static void test_invalid_sequences(void)
 {
-    uint8_t buffer[4] = {0, 0, 0, 0};
+    static const uint8_t stray_continuation[] = {0x80u};
+    static const uint8_t overlong_two[] = {0xC0u, 0x80u};
+    static const uint8_t overlong_three[] = {0xE0u, 0x80u, 0x80u};
+    static const uint8_t overlong_four[] = {0xF0u, 0x80u, 0x80u, 0x80u};
+    static const uint8_t surrogate[] = {0xEDu, 0xA0u, 0x80u};
+    static const uint8_t above_maximum[] = {0xF4u, 0x90u, 0x80u, 0x80u};
+    static const uint8_t invalid_lead[] = {0xF5u, 0x80u, 0x80u, 0x80u};
+    static const uint8_t all_ones[] = {0xFFu};
+    static const uint8_t bad_continuation[] = {0xE4u, 0x00u, 0x00u};
+    const struct {
+        const uint8_t *bytes;
+        size_t length;
+    } cases[] = {{stray_continuation, sizeof(stray_continuation)},
+                 {overlong_two, sizeof(overlong_two)},
+                 {overlong_three, sizeof(overlong_three)},
+                 {overlong_four, sizeof(overlong_four)},
+                 {surrogate, sizeof(surrogate)},
+                 {above_maximum, sizeof(above_maximum)},
+                 {invalid_lead, sizeof(invalid_lead)},
+                 {all_ones, sizeof(all_ones)},
+                 {bad_continuation, sizeof(bad_continuation)}};
+    size_t index;
 
-    CHECK_EQ(UnicodeToUTF8(0xD800u, buffer), 0);
-    CHECK_EQ(UnicodeToUTF8(0xDFFFu, buffer), 0);
-    CHECK_EQ(UnicodeToUTF8(0x110000u, buffer), 0);
-    CHECK_EQ(UnicodeToUTF8(0xFFFFFFFFu, buffer), 0);
-    CHECK_EQ(UnicodeToUTF8(0x41u, NULL), 0);
+    for (index = 0u; index < sizeof(cases) / sizeof(cases[0]); ++index) {
+        uint32_t code_point = 0xDEADBEEFu;
+        size_t consumed = 99u;
+
+        CHECK_EQ(gbc_utf8_decode(cases[index].bytes, cases[index].length, &code_point, &consumed),
+                 GBC_E_INVALID_SEQUENCE);
+        /* Outputs must be untouched on failure. */
+        CHECK_EQ(code_point, 0xDEADBEEFu);
+        CHECK_EQ(consumed, 99u);
+    }
 }
 
-static void test_round_trip(void)
+static void test_truncated(void)
 {
-    uint32_t code_point;
+    static const uint8_t one_byte[] = {0xE4u};
+    static const uint8_t two_bytes[] = {0xE4u, 0xB8u};
+    static const uint8_t three_bytes[] = {0xF0u, 0x9Fu, 0x98u};
+    const struct {
+        const uint8_t *bytes;
+        size_t length;
+    } cases[] = {{one_byte, sizeof(one_byte)},
+                 {two_bytes, sizeof(two_bytes)},
+                 {three_bytes, sizeof(three_bytes)},
+                 {one_byte, 0u}};
+    size_t index;
 
-    for (code_point = 0; code_point < 0x2000u; ++code_point) {
-        uint8_t encoded[4];
-        int32_t length;
+    for (index = 0u; index < sizeof(cases) / sizeof(cases[0]); ++index) {
+        uint32_t code_point = 0u;
+        size_t consumed = 0u;
 
-        if (code_point >= 0xD800u && code_point <= 0xDFFFu) {
-            continue;
-        }
-        length = UnicodeToUTF8(code_point, encoded);
-        CHECK_EQ(length, (int32_t)(code_point < 0x80u ? 1 : (code_point < 0x800u ? 2 : 3)));
-        {
-            uint32_t decoded = 0;
-            CHECK_EQ(UTF8ToUnicode(encoded, &decoded), length);
-            CHECK_EQ(decoded, code_point);
-        }
+        CHECK_EQ(gbc_utf8_decode(cases[index].bytes, cases[index].length, &code_point, &consumed),
+                 GBC_E_TRUNCATED);
     }
+}
+
+static void test_invalid_arguments(void)
+{
+    static const uint8_t bytes[] = {'A'};
+    uint32_t code_point = 0u;
+    size_t consumed = 0u;
+
+    CHECK_EQ(gbc_utf8_decode(NULL, 1u, &code_point, &consumed), GBC_E_INVALID_ARGUMENT);
+    CHECK_EQ(gbc_utf8_decode(bytes, 1u, NULL, &consumed), GBC_E_INVALID_ARGUMENT);
+    CHECK_EQ(gbc_utf8_decode(bytes, 1u, &code_point, NULL), GBC_E_INVALID_ARGUMENT);
+    CHECK_EQ(gbc_utf8_encode(0x41u, NULL), 0u);
+}
+
+static void test_encode_rejects(void)
+{
+    uint8_t encoded[4] = {0u};
+
+    CHECK_EQ(gbc_utf8_encode(0xD800u, encoded), 0u);
+    CHECK_EQ(gbc_utf8_encode(0xDC00u, encoded), 0u);
+    CHECK_EQ(gbc_utf8_encode(0x110000u, encoded), 0u);
+    CHECK_EQ(gbc_utf8_encode(0xFFFFFFFEu, encoded), 0u);
 }
 
 int main(void)
 {
-    test_decode_valid();
-    test_decode_invalid();
-    test_decode_null();
-    test_encode();
-    test_encode_invalid();
-    test_round_trip();
-    TEST_REPORT();
+    test_ascii();
+    test_two_byte();
+    test_three_byte();
+    test_four_byte();
+    test_boundaries();
+    test_invalid_sequences();
+    test_truncated();
+    test_invalid_arguments();
+    test_encode_rejects();
+    return gbc_test_result();
 }

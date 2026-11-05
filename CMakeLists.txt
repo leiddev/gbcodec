@@ -16,7 +16,7 @@ else()
 endif()
 
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
-option(GBCODEC_BUILD_CXX "Build the C++ convenience wrapper" ${GBCODEC_IS_TOP_LEVEL})
+option(GBCODEC_BUILD_CXX "Provide the C++17 convenience wrapper" ${GBCODEC_IS_TOP_LEVEL})
 option(GBCODEC_BUILD_EXAMPLES "Build the example programs" ${GBCODEC_IS_TOP_LEVEL})
 option(GBCODEC_BUILD_TESTS "Build the unit tests" ${GBCODEC_IS_TOP_LEVEL})
 option(GBCODEC_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
@@ -31,6 +31,10 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
         Debug Release RelWithDebInfo MinSizeRel)
 endif()
+
+# Programs and DLLs share one output directory per configuration so that a
+# shared-library build can be run without copying files around.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # ---------------------------------------------------------------------------
 # Warning helper
@@ -51,43 +55,62 @@ function(gbcodec_enable_warnings target)
 endfunction()
 
 # ---------------------------------------------------------------------------
+# Generated headers
+# ---------------------------------------------------------------------------
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/gbcodec/version.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/include/gbcodec/version.h
+    @ONLY)
+
+# ---------------------------------------------------------------------------
 # Library: C core
 # ---------------------------------------------------------------------------
 add_library(gbcodec
-    src/unicode_utility.c
+    src/convert.c
+    src/gb2312.c
+    src/status.c
+    src/utf8.c
+    src/utf16.c
     src/detail/gb2312_table.c)
 add_library(gbcodec::gbcodec ALIAS gbcodec)
 
 target_include_directories(gbcodec PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
     $<INSTALL_INTERFACE:include>)
+target_include_directories(gbcodec PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+# Only the symbols marked GBC_API leave a shared library.
+target_compile_definitions(gbcodec PRIVATE GBCODEC_BUILDING_LIBRARY)
+if(BUILD_SHARED_LIBS)
+    target_compile_definitions(gbcodec PUBLIC GBCODEC_SHARED)
+endif()
 
 set_target_properties(gbcodec PROPERTIES
     C_STANDARD 99
     C_STANDARD_REQUIRED ON
     C_EXTENSIONS OFF
+    C_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR})
 
 gbcodec_enable_warnings(gbcodec)
 
 # ---------------------------------------------------------------------------
-# Library: C++ convenience wrapper
+# Library: C++17 convenience wrapper (header-only)
 # ---------------------------------------------------------------------------
 if(GBCODEC_BUILD_CXX)
-    add_library(gbcodec_cpp src/unicode_utility_cpp.cpp)
+    add_library(gbcodec_cpp INTERFACE)
     add_library(gbcodec::gbcodec_cpp ALIAS gbcodec_cpp)
 
-    target_link_libraries(gbcodec_cpp PUBLIC gbcodec)
+    target_link_libraries(gbcodec_cpp INTERFACE gbcodec)
+    target_compile_features(gbcodec_cpp INTERFACE cxx_std_17)
 
-    set_target_properties(gbcodec_cpp PROPERTIES
-        CXX_STANDARD 11
-        CXX_STANDARD_REQUIRED ON
-        CXX_EXTENSIONS OFF
-        VERSION ${PROJECT_VERSION}
-        SOVERSION ${PROJECT_VERSION_MAJOR})
-
-    gbcodec_enable_warnings(gbcodec_cpp)
+    if(MSVC)
+        target_compile_options(gbcodec_cpp INTERFACE /utf-8)
+    endif()
 endif()
 
 # ---------------------------------------------------------------------------

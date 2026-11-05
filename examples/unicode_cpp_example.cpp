@@ -1,40 +1,29 @@
 /*
- * gbcodec - basic C++ usage example.
+ * gbcodec - basic C++ example.
  *
  * Copyright (c) 2016-2026 leid
  * SPDX-License-Identifier: ISC
  */
+#include <gbcodec/gbcodec.hpp>
+
 #include <cstdio>
+#include <iostream>
 #include <string>
-
-#include "unicode_utility_cpp.h"
-
-static void print_hex(const char *label, const std::string &data)
-{
-    std::printf("%s:", label);
-    for (std::string::size_type index = 0; index < data.size(); ++index) {
-        std::printf(" %02X", static_cast<unsigned char>(data[index]));
-    }
-    std::printf("\n");
-}
+#include <string_view>
 
 int main()
 {
-    /* "中文abc" in UTF-8, written as bytes to stay independent of the
-     * source file encoding. */
-    static const char utf8_text[] = "\xE4\xB8\xAD\xE6\x96\x87" "abc";
-    std::string input(utf8_text);
+    const std::string_view utf8_text = "\xE4\xB8\xAD\xE6\x96\x87" "abc"; /* 中文abc */
 
-    std::string gb2312 = UnicodeUtility::UTF8ToGB2312(input);
-    if (gb2312.empty()) {
-        std::fprintf(stderr, "UTF-8 to GB2312 conversion failed\n");
+    try {
+        const std::string gb2312 = gbcodec::to_gb2312(utf8_text);
+        const std::string decoded = gbcodec::from_gb2312(gb2312);
+
+        std::printf("GB2312: %zu bytes\n", gb2312.size());
+        std::printf("UTF-8:  %s\n", decoded.c_str());
+        return decoded == utf8_text ? 0 : 1;
+    } catch (const gbcodec::error &failure) {
+        std::cerr << "conversion failed: " << failure.what() << '\n';
         return 1;
     }
-    print_hex("UTF-8  ", input);
-    print_hex("GB2312 ", gb2312);
-
-    std::string back = UnicodeUtility::GB2312ToUTF8(gb2312);
-    print_hex("UTF-8  ", back);
-
-    return back == input ? 0 : 1;
 }

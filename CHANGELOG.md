@@ -5,6 +5,45 @@
 
 ## [Unreleased]
 
+### 破坏性变更
+
+- 公开 API 整体重写为 `gbcodec`：头文件为 `<gbcodec/...>`，C 函数前缀 `gbc_`，
+  宏前缀 `GBC_`，C++ 命名空间为 `gbcodec`。历史接口（`inc/unicode_utility.h`、
+  `inc/unicode_utility_cpp.h` 与 `UnicodeUtility` 命名空间）已删除。
+- 所有函数改为返回 `gbc_status` 错误码，并显式接收长度参数；单字符接口统一为
+  `gbc_*_decode(src, src_length, out_code_point, out_consumed)` 与
+  `gbc_*_encode(code_point, out)` 两种形状。
+- GB2312 缓冲区不再用 `uint16_t` 承载，改为字节流（`uint8_t` / `char`），
+  与主机字节序无关。
+
+| 历史接口 | 现在的接口 |
+| --- | --- |
+| `UTF8ToUnicode` | `gbc_utf8_decode` |
+| `UnicodeToUTF8` | `gbc_utf8_encode` |
+| `UnicodeToUTF16` | `gbc_utf16_encode` |
+| `UTF16toUnicode` | `gbc_utf16_decode` |
+| `UTF16ToGB2312` | `gbc_gb2312_encode`（先 `gbc_utf16_decode` 得到码点） |
+| `GB2312ToUTF16` | `gbc_gb2312_decode` + `gbc_utf16_encode` |
+| `UTF8ToGB2312` / `UTF8ToGB2312Str` | `gbc_utf8_to_gb2312` / `gbc_utf8_to_gb2312_z` |
+| `GB2312ToUTF8` / `GB2312ToUTF8Str` | `gbc_gb2312_to_utf8` / `gbc_gb2312_to_utf8_z` |
+
+### 新增
+
+- C++17 封装 `<gbcodec/gbcodec.hpp>`：`gbcodec::to_gb2312` / `from_gb2312`（抛出
+  `gbcodec::error`）与 `try_to_gb2312` / `try_from_gb2312`（返回 `bool`）。
+- `gbc_status_string`：把错误码转换为固定的英文描述。
+- `gbc_utf8_to_gb2312_capacity` / `gbc_gb2312_to_utf8_capacity`：在写入前查询
+  结果长度，便于一次性分配缓冲区。
+- 共享库导出控制（`<gbcodec/export.h>`、`GBC_API`、`-fvisibility=hidden`）与
+  `version.h` 版本宏。
+- 单元测试重写为五个 C 测试程序加一个 C++ 测试程序，覆盖非法序列、截断、
+  缓冲区边界矩阵、内嵌 NUL、内嵌容量、全码表往返等场景。
+
+### 变更
+
+- CI 增加共享库构建（Windows x64 / Linux x64）与 ASan/UBSan 稳定性处理。
+- 可执行文件与 Windows DLL 统一输出到 `build/bin/<配置>/`。
+
 ### 变更
 
 - 码表改为由 `tools/gen_gb2312_table.py` 生成（数据源为 Python 的 `gb2312`

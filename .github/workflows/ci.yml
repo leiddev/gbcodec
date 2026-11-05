@@ -55,6 +55,18 @@ jobs:
             platform: ""
             arch_flags: ""
             sanitizers: "ON"
+          - name: Windows x64 (MSVC, shared)
+            os: windows-latest
+            platform: x64
+            arch_flags: ""
+            sanitizers: "OFF"
+            shared: "ON"
+          - name: Linux x64 (GCC, shared)
+            os: ubuntu-latest
+            platform: ""
+            arch_flags: ""
+            sanitizers: "OFF"
+            shared: "ON"
 
     steps:
       - name: Checkout
@@ -85,8 +97,17 @@ jobs:
             extra+=("-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined")
             extra+=("-DCMAKE_SHARED_LINKER_FLAGS=-fsanitize=address,undefined")
           fi
+          if [ "${{ matrix.shared }}" = "ON" ]; then
+            extra+=("-DBUILD_SHARED_LIBS=ON")
+          fi
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
             -DGBCODEC_WARNINGS_AS_ERRORS=ON "${extra[@]}"
+
+      # High ASLR entropy makes the ASan shadow mapping fail at startup on
+      # some runners; lowering it keeps the sanitizer job deterministic.
+      - name: Reduce ASLR entropy
+        if: matrix.sanitizers == 'ON'
+        run: sudo sysctl -w vm.mmap_rnd_bits=28 || true
 
       - name: Build
         run: cmake --build build --config Debug --parallel

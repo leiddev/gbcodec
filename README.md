@@ -14,8 +14,10 @@ Windows 与 Linux 上得到完全一致的结果。
 - 显式长度与容量参数，不使用全局状态，线程安全。
 - 同时提供单字符（码点级）与整串（缓冲区级）转换接口。
 - 完整的错误码：非法序列、截断、无法映射、缓冲区不足可分别判断。
+- 严格校验 UTF-8（拒绝过长编码、代理区与超过 U+10FFFF 的值）。
 - 内置 O(1) / O(log n) 查表，不使用线性扫描。
-- 在 Windows（MSVC、MinGW）与 Linux（GCC、Clang）的 x86 / x64 上持续集成。
+- 在 Windows（MSVC）与 Linux（GCC）的 x86 / x64 上持续集成，并覆盖共享库与
+  AddressSanitizer / UndefinedBehaviorSanitizer 构建。
 
 ## 支持的平台
 
@@ -26,17 +28,79 @@ Windows 与 Linux 上得到完全一致的结果。
 | Linux | x64 | GCC 9+ / Clang 10+ | CI 覆盖 |
 | Linux | x86 | GCC 9+（`-m32`） | CI 覆盖 |
 
-> 目前只覆盖 GB2312（6763 个汉字 + 682 个符号）。GBK / GB18030 不在 1.0 的范围内，
-> 详见 [docs/compatibility.md](docs/compatibility.md)。
+> 目前只覆盖 GB2312（6763 个汉字 + 682 个符号）。GBK / GB18030 / CP936 不在 1.0 的
+> 范围内，详见 [docs/compatibility.md](docs/compatibility.md)。
 
-## 项目状态
+## 快速开始
 
-当前仓库正处于从历史实现向 1.0 重构的过渡期：
+C 语言：
 
-- `main` 分支在 1.0 发布前不保证 API 与 ABI 稳定；
-- 历史实现（`inc/unicode_utility.h`）暂时保留，1.0 将整体替换为
-  `<gbcodec/gbcodec.h>`；
-- 迁移说明见 [CHANGELOG.md](CHANGELOG.md)。
+```c
+#include <gbcodec/gbcodec.h>
+
+#include <stdio.h>
+
+int main(void)
+{
+    char gb2312[64];
+    size_t length = 0;
+
+    /* 源文件需以 UTF-8 保存。 */
+    const gbc_status status = gbc_utf8_to_gb2312_z("中文abc", gb2312, sizeof gb2312, &length);
+    if (status != GBC_OK) {
+        fprintf(stderr, "转换失败: %s\n", gbc_status_string(status));
+        return 1;
+    }
+
+    printf("%zu 字节的 GB2312 数据\n", length);
+    return 0;
+}
+```
+
+C++（可选，需 C++17）：
+
+```cpp
+#include <gbcodec/gbcodec.hpp>
+
+#include <string>
+
+int main()
+{
+    const std::string gb2312 = gbcodec::to_gb2312("中文abc"); // 失败时抛出 gbcodec::error
+    const std::string utf8 = gbcodec::from_gb2312(gb2312);
+    return utf8.empty() ? 1 : 0;
+}
+```
+
+## API 概览
+
+| 头文件 | 内容 |
+| --- | --- |
+| `<gbcodec/gbcodec.h>` | 汇总头文件，包含下面的全部 C 接口 |
+| `<gbcodec/utf8.h>` | `gbc_utf8_decode` / `gbc_utf8_encode` |
+| `<gbcodec/utf16.h>` | `gbc_utf16_decode` / `gbc_utf16_encode` |
+| `<gbcodec/gb2312.h>` | `gbc_gb2312_decode` / `gbc_gb2312_encode` |
+| `<gbcodec/convert.h>` | `gbc_utf8_to_gb2312`、`gbc_gb2312_to_utf8` 及其 `_z` / `_capacity` 变体 |
+| `<gbcodec/status.h>` | `gbc_status` 错误码与 `gbc_status_string` |
+| `<gbcodec/gbcodec.hpp>` | C++17 封装 `gbcodec::to_gb2312` 等（头文件形式） |
+
+约定：
+
+- 所有函数的输入都是「显式长度」的字节序列，不依赖 NUL 结尾，允许出现内嵌 NUL。
+- 整串转换函数会预留 1 字节存放结尾的 NUL，并在成功时写入结尾的 NUL。
+- 失败时目标缓冲区首字节被写成 NUL，输出参数保持不变，绝不会写出缓冲区边界。
+- GB2312 缓冲区按字节流顺序处理（先首字节后尾字节），与主机的字节序无关。
+
+### 错误码
+
+| 值 | 含义 |
+| --- | --- |
+| `GBC_OK` | 成功（值为 0） |
+| `GBC_E_INVALID_ARGUMENT` | 传入了 NULL 指针 |
+| `GBC_E_INVALID_SEQUENCE` | 输入不是合法的字节序列 |
+| `GBC_E_TRUNCATED` | 输入在序列中间结束 |
+| `GBC_E_UNMAPPABLE` | 字符在目标字符集中没有对应项 |
+| `GBC_E_BUFFER_TOO_SMALL` | 目标缓冲区不足（含结尾 NUL） |
 
 ## 构建
 
@@ -47,9 +111,6 @@ Windows 与 Linux 上得到完全一致的结果。
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
-
-# 安装
-cmake --install build --prefix /your/prefix
 ```
 
 Windows 上使用 Visual Studio 生成器时可以指定架构：
@@ -68,12 +129,14 @@ cmake --build --preset linux-x64
 ctest --preset linux-x64
 ```
 
+可执行文件（以及 Windows 下的 DLL）统一输出到 `build/bin/<配置>/`。
+
 ### 构建选项
 
 | 选项 | 默认值 | 说明 |
 | --- | --- | --- |
-| `BUILD_SHARED_LIBS` | `OFF` | 构建共享库 |
-| `GBCODEC_BUILD_CXX` | 顶层项目时 `ON` | 构建 C++ 封装；作为子项目时默认关闭，避免强制依赖 C++ 编译器 |
+| `BUILD_SHARED_LIBS` | `OFF` | 构建共享库；只导出标记为 `GBC_API` 的符号 |
+| `GBCODEC_BUILD_CXX` | 顶层项目时 `ON` | 提供 C++17 封装；作为子项目时默认关闭，避免强制依赖 C++ 编译器 |
 | `GBCODEC_BUILD_EXAMPLES` | 顶层项目时 `ON` | 构建示例程序 |
 | `GBCODEC_BUILD_TESTS` | 顶层项目时 `ON` | 构建单元测试 |
 | `GBCODEC_WARNINGS_AS_ERRORS` | `OFF` | 把编译告警当作错误 |
@@ -82,22 +145,22 @@ ctest --preset linux-x64
 
 ```text
 .
-├─ include/        公开头文件（1.0 起）
-├─ inc/            历史头文件（过渡期保留）
-├─ src/            实现与码表
-├─ examples/       示例程序
-├─ tests/          单元测试
-├─ tools/          码表生成脚本
-├─ docs/           设计、命名与兼容性文档
-└─ .github/        CI 与协作模板
+├─ include/gbcodec/  公开头文件（C 接口 + C++17 封装）
+├─ src/              实现
+│  └─ detail/        生成的 GB2312 码表（不对外公开）
+├─ examples/         示例程序
+├─ tests/            单元测试
+├─ tools/            码表生成脚本
+├─ docs/             设计、命名与兼容性文档
+└─ .github/          CI 与协作模板
 ```
 
 ## 路线图
 
 - [x] 建立仓库、导入基线、搭建 CI（Windows / Linux，x86 / x64）
-- [ ] 补齐测试并修复内存安全与正确性缺陷
-- [ ] 重建码表，改为 O(1) / O(log n) 查找
-- [ ] 重新设计并重命名公开 API（`gbcodec` / `gbc_` 前缀 / C++17 封装）
+- [x] 补齐测试并修复内存安全与正确性缺陷
+- [x] 重建码表，改为 O(1) / O(log n) 查找
+- [x] 重新设计并重命名公开 API（`gbcodec` / `gbc_` 前缀 / C++17 封装）
 - [ ] 打包、文档与 1.0.0 发布
 
 ## 参与贡献

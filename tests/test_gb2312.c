@@ -1,190 +1,185 @@
 /*
- * Tests for GB2312 encoding, decoding and validation.
+ * gbcodec - tests for the GB2312 codec.
  *
  * Copyright (c) 2016-2026 leid
  * SPDX-License-Identifier: ISC
  */
+#include <gbcodec/gb2312.h>
+
+#include <stddef.h>
+#include <stdint.h>
+
 #include "test_common.h"
-#include "unicode_utility.h"
 
-static void test_encode_ascii(void)
+/* Number of assigned characters in GB2312. */
+#define GBC_TEST_EXPECTED_ENTRIES 7445u
+
+static void test_ascii(void)
 {
-    uint16_t buffer = 0;
-    const unsigned char *bytes = (const unsigned char *)&buffer;
+    static const uint8_t bytes[] = {'A'};
+    uint32_t code_point = 0u;
+    size_t consumed = 0u;
+    uint8_t encoded[2] = {0u, 0u};
 
-    CHECK_EQ(UTF16ToGB2312(0x41u, &buffer), 1);
-    CHECK_EQ(bytes[0], 0x41);
-}
+    CHECK_EQ(gbc_gb2312_decode(bytes, 1u, &code_point, &consumed), GBC_OK);
+    CHECK_EQ(code_point, 0x41u);
+    CHECK_EQ(consumed, 1u);
 
-static void test_encode_cjk(void)
-{
-    uint16_t buffer = 0;
-    const unsigned char *bytes = (const unsigned char *)&buffer;
-
-    /* U+4E2D is 0xD6D0 in GB2312 and must be stored as D6 D0. */
-    CHECK_EQ(UTF16ToGB2312(0x4E2Du, &buffer), 2);
-    CHECK_EQ(bytes[0], 0xD6);
-    CHECK_EQ(bytes[1], 0xD0);
-}
-
-static void test_latin_one_regression(void)
-{
-    /* U+00A4 used to be written as a single 0xA4 byte because of a wrong
-     * "ASCII" threshold. It must map to the two-byte GB2312 code A1E8. */
-    uint16_t buffer = 0;
-    const unsigned char *bytes = (const unsigned char *)&buffer;
-
-    CHECK_EQ(UTF16ToGB2312(0x00A4u, &buffer), 2);
-    CHECK_EQ(bytes[0], 0xA1);
-    CHECK_EQ(bytes[1], 0xE8);
-}
-
-static void test_encode_unmappable(void)
-{
-    uint16_t buffer = 0;
-
-    CHECK_EQ(UTF16ToGB2312(0xD800u, &buffer), -1);   /* surrogate */
-    CHECK_EQ(UTF16ToGB2312(0xFFFDu, &buffer), -1);   /* never mapped */
-    CHECK_EQ(UTF16ToGB2312(0x0041u, NULL), -1);
-}
-
-static void test_decode(void)
-{
-    uint16_t buffer;
-    uint16_t code_point = 0;
-
-    buffer = 0;
-    ((unsigned char *)&buffer)[0] = 0x41;
-    CHECK_EQ(GB2312ToUTF16(buffer, &code_point), 1);
-    CHECK_EQ(code_point, 0x0041);
-
-    buffer = 0;
-    ((unsigned char *)&buffer)[0] = 0xD6;
-    ((unsigned char *)&buffer)[1] = 0xD0;
-    CHECK_EQ(GB2312ToUTF16(buffer, &code_point), 2);
-    CHECK_EQ(code_point, 0x4E2D);
-
-    buffer = 0;
-    ((unsigned char *)&buffer)[0] = 0xA1;
-    ((unsigned char *)&buffer)[1] = 0xE8;
-    CHECK_EQ(GB2312ToUTF16(buffer, &code_point), 2);
-    CHECK_EQ(code_point, 0x00A4);
-}
-
-static void test_decode_invalid(void)
-{
-    uint16_t buffer;
-    uint16_t code_point = 0xFFFF;
-
-    buffer = 0;
-    ((unsigned char *)&buffer)[0] = 0x80; /* stray high byte */
-    CHECK_EQ(GB2312ToUTF16(buffer, &code_point), -1);
-
-    buffer = 0;
-    ((unsigned char *)&buffer)[0] = 0xA0; /* invalid lead */
-    ((unsigned char *)&buffer)[1] = 0xA1;
-    CHECK_EQ(GB2312ToUTF16(buffer, &code_point), -1);
-
-    buffer = 0;
-    ((unsigned char *)&buffer)[0] = 0xA1; /* invalid trail */
-    ((unsigned char *)&buffer)[1] = 0xA0;
-    CHECK_EQ(GB2312ToUTF16(buffer, &code_point), -1);
-
-    buffer = 0;
-    ((unsigned char *)&buffer)[0] = 0xAA; /* unassigned row, valid lead */
-    ((unsigned char *)&buffer)[1] = 0xA1;
-    CHECK_EQ(GB2312ToUTF16(buffer, &code_point), -1);
-
-    buffer = 0;
-    ((unsigned char *)&buffer)[0] = 0x41;
-    CHECK_EQ(GB2312ToUTF16(buffer, NULL), -1);
-
-    CHECK_EQ(code_point, 0xFFFF);
+    CHECK_EQ(gbc_gb2312_encode(0x20u, encoded), 1u);
+    CHECK_EQ(encoded[0], 0x20u);
 }
 
 static void test_known_mappings(void)
 {
-    uint16_t buffer = 0;
-    uint16_t code_point = 0;
+    static const uint8_t hanzi[] = {0xB0u, 0xA1u};
+    static const uint8_t space[] = {0xA1u, 0xA1u};
+    uint32_t code_point = 0u;
+    size_t consumed = 0u;
+    uint8_t encoded[2] = {0u, 0u};
 
-    /* 0xB0A1 is the first GB2312 hanzi, U+554A. */
-    buffer = 0;
-    ((unsigned char *)&buffer)[0] = 0xB0;
-    ((unsigned char *)&buffer)[1] = 0xA1;
-    CHECK_EQ(GB2312ToUTF16(buffer, &code_point), 2);
-    CHECK_EQ(code_point, 0x554A);
-    CHECK_EQ(UTF16ToGB2312(0x554Au, &buffer), 2);
-    CHECK_EQ(((const unsigned char *)&buffer)[0], 0xB0);
-    CHECK_EQ(((const unsigned char *)&buffer)[1], 0xA1);
+    /* B0A1 <-> U+554A (啊). */
+    CHECK_EQ(gbc_gb2312_decode(hanzi, 2u, &code_point, &consumed), GBC_OK);
+    CHECK_EQ(code_point, 0x554Au);
+    CHECK_EQ(consumed, 2u);
+    CHECK_EQ(gbc_gb2312_encode(0x554Au, encoded), 2u);
+    CHECK_BYTES(encoded, hanzi, 2u);
+
+    /* A1A1 <-> U+3000 (ideographic space). */
+    CHECK_EQ(gbc_gb2312_decode(space, 2u, &code_point, &consumed), GBC_OK);
+    CHECK_EQ(code_point, 0x3000u);
+    CHECK_EQ(gbc_gb2312_encode(0x3000u, encoded), 2u);
+    CHECK_BYTES(encoded, space, 2u);
 }
 
-static void test_gbk_only_codes_are_rejected(void)
+static void test_latin_one_regression(void)
 {
-    uint16_t buffer = 0;
-    uint16_t code_point = 0;
+    /* U+00A4 used to be looked up with a wrong signed comparison. */
+    static const uint8_t expected[] = {0xA1u, 0xE8u};
+    uint8_t encoded[2] = {0u, 0u};
+    uint32_t code_point = 0u;
+    size_t consumed = 0u;
 
-    /* U+20AC (euro sign) was added by GBK, not GB2312. */
-    CHECK_EQ(UTF16ToGB2312(0x20ACu, &buffer), -1);
-    /* Small roman numerals are a GBK extension as well. */
-    CHECK_EQ(UTF16ToGB2312(0x2170u, &buffer), -1);
+    CHECK_EQ(gbc_gb2312_encode(0xA4u, encoded), 2u);
+    CHECK_BYTES(encoded, expected, 2u);
 
-    buffer = 0;
-    ((unsigned char *)&buffer)[0] = 0xA2;
-    ((unsigned char *)&buffer)[1] = 0xE3;
-    CHECK_EQ(GB2312ToUTF16(buffer, &code_point), -1);
-
-    /* Legacy tables mapped these unassigned slots into the Private Use Area. */
-    buffer = 0;
-    ((unsigned char *)&buffer)[0] = 0xD7;
-    ((unsigned char *)&buffer)[1] = 0xFA;
-    CHECK_EQ(GB2312ToUTF16(buffer, &code_point), -1);
+    CHECK_EQ(gbc_gb2312_decode(expected, 2u, &code_point, &consumed), GBC_OK);
+    CHECK_EQ(code_point, 0xA4u);
 }
 
-static void test_utf8_bridge(void)
+static void test_unmapped_input(void)
 {
-    uint16_t buffer = 0;
-    uint8_t utf8[4] = {0, 0, 0, 0};
-    uint32_t consumed = 0;
-    uint32_t gb2312_size = 0;
-    static const uint8_t cjk[] = {0xE4, 0xB8, 0xAD};
+    /* AA A1 is a valid GB2312 byte pair but no character is assigned to it. */
+    static const uint8_t unassigned[] = {0xAAu, 0xA1u};
+    uint32_t code_point = 0xDEADBEEFu;
+    size_t consumed = 99u;
 
-    CHECK_EQ(UTF8ToGB2312((uint8_t *)cjk, &consumed, &buffer), 2);
-    CHECK_EQ(consumed, 3);
-    CHECK_EQ(((const unsigned char *)&buffer)[0], 0xD6);
-    CHECK_EQ(((const unsigned char *)&buffer)[1], 0xD0);
-
-    CHECK_EQ(GB2312ToUTF8(&buffer, &gb2312_size, utf8), 3);
-    CHECK_EQ(gb2312_size, 2);
-    CHECK_BYTES(utf8, cjk, 3);
+    CHECK_EQ(gbc_gb2312_decode(unassigned, 2u, &code_point, &consumed), GBC_E_UNMAPPABLE);
+    CHECK_EQ(code_point, 0xDEADBEEFu);
+    CHECK_EQ(consumed, 99u);
 }
 
-static void test_utf8_bridge_errors(void)
+static void test_unmappable_code_points(void)
 {
-    uint16_t buffer = 0;
-    uint8_t utf8[4] = {0, 0, 0, 0};
-    uint32_t size = 0;
-    static const uint8_t emoji[] = {0xF0, 0x9F, 0x98, 0x80}; /* U+1F600 */
-    static const uint8_t invalid[] = {0xC0, 0xAF, 0x00, 0x00};
+    static const uint32_t code_points[] = {
+        0x20ACu, /* EURO SIGN: GBK only. */
+        0x2170u, /* SMALL ROMAN NUMERAL ONE: GBK only. */
+        0xE000u, /* Private use area. */
+        0x10000u /* Outside the basic multilingual plane. */
+    };
+    size_t index;
 
-    CHECK_EQ(UTF8ToGB2312((uint8_t *)emoji, &size, &buffer), -1);
-    CHECK_EQ(UTF8ToGB2312((uint8_t *)invalid, &size, &buffer), -1);
-    CHECK_EQ(UTF8ToGB2312(NULL, &size, &buffer), -1);
-    CHECK_EQ(UTF8ToGB2312((uint8_t *)emoji, &size, NULL), -1);
-    CHECK_EQ(GB2312ToUTF8(NULL, &size, utf8), -1);
-    CHECK_EQ(GB2312ToUTF8(&buffer, &size, NULL), -1);
+    for (index = 0u; index < sizeof(code_points) / sizeof(code_points[0]); ++index) {
+        uint8_t encoded[2] = {0u, 0u};
+
+        CHECK_EQ(gbc_gb2312_encode(code_points[index], encoded), 0u);
+    }
+}
+
+static void test_invalid_sequences(void)
+{
+    static const uint8_t invalid_lead[] = {0x81u};
+    static const uint8_t gbk_only_lead[] = {0xF8u, 0xA1u};
+    static const uint8_t invalid_trail_low[] = {0xA1u, 0x40u};
+    static const uint8_t invalid_trail_high[] = {0xA1u, 0xFFu};
+    const struct {
+        const uint8_t *bytes;
+        size_t length;
+    } cases[] = {{invalid_lead, 1u},
+                 {gbk_only_lead, 2u},
+                 {invalid_trail_low, 2u},
+                 {invalid_trail_high, 2u}};
+    size_t index;
+
+    for (index = 0u; index < sizeof(cases) / sizeof(cases[0]); ++index) {
+        uint32_t code_point = 0xDEADBEEFu;
+        size_t consumed = 99u;
+
+        CHECK_EQ(gbc_gb2312_decode(cases[index].bytes, cases[index].length, &code_point,
+                                   &consumed),
+                 GBC_E_INVALID_SEQUENCE);
+        CHECK_EQ(code_point, 0xDEADBEEFu);
+        CHECK_EQ(consumed, 99u);
+    }
+}
+
+static void test_truncated_and_arguments(void)
+{
+    static const uint8_t lead_only[] = {0xA1u};
+    static const uint8_t pair[] = {0xB0u, 0xA1u};
+    uint32_t code_point = 0u;
+    size_t consumed = 0u;
+    uint8_t encoded[2] = {0u, 0u};
+
+    CHECK_EQ(gbc_gb2312_decode(lead_only, 1u, &code_point, &consumed), GBC_E_TRUNCATED);
+    CHECK_EQ(gbc_gb2312_decode(pair, 0u, &code_point, &consumed), GBC_E_TRUNCATED);
+    CHECK_EQ(gbc_gb2312_decode(NULL, 1u, &code_point, &consumed), GBC_E_INVALID_ARGUMENT);
+    CHECK_EQ(gbc_gb2312_decode(pair, 2u, NULL, &consumed), GBC_E_INVALID_ARGUMENT);
+    CHECK_EQ(gbc_gb2312_decode(pair, 2u, &code_point, NULL), GBC_E_INVALID_ARGUMENT);
+    CHECK_EQ(gbc_gb2312_encode(0x4E2Du, NULL), 0u);
+    CHECK_EQ(gbc_gb2312_encode(0xD800u, encoded), 0u);
+}
+
+static void test_byte_range_is_exhaustive(void)
+{
+    uint32_t lead;
+    size_t mapped = 0u;
+    size_t unmapped = 0u;
+
+    for (lead = 0xA1u; lead <= 0xF7u; ++lead) {
+        uint32_t trail;
+
+        for (trail = 0xA1u; trail <= 0xFEu; ++trail) {
+            const uint8_t bytes[2] = {(uint8_t)lead, (uint8_t)trail};
+            uint32_t code_point = 0u;
+            size_t consumed = 0u;
+            uint8_t encoded[2] = {0u, 0u};
+            const gbc_status status = gbc_gb2312_decode(bytes, 2u, &code_point, &consumed);
+
+            if (status == GBC_OK) {
+                ++mapped;
+                CHECK_EQ(consumed, 2u);
+                CHECK_EQ(gbc_gb2312_encode(code_point, encoded), 2u);
+                CHECK_BYTES(encoded, bytes, 2u);
+            } else {
+                CHECK_EQ(status, GBC_E_UNMAPPABLE);
+                ++unmapped;
+            }
+        }
+    }
+
+    CHECK_EQ(mapped, GBC_TEST_EXPECTED_ENTRIES);
+    CHECK_EQ(mapped + unmapped, 87u * 94u);
 }
 
 int main(void)
 {
-    test_encode_ascii();
-    test_encode_cjk();
-    test_latin_one_regression();
-    test_encode_unmappable();
-    test_decode();
-    test_decode_invalid();
+    test_ascii();
     test_known_mappings();
-    test_gbk_only_codes_are_rejected();
-    test_utf8_bridge();
-    test_utf8_bridge_errors();
-    TEST_REPORT();
+    test_latin_one_regression();
+    test_unmapped_input();
+    test_unmappable_code_points();
+    test_invalid_sequences();
+    test_truncated_and_arguments();
+    test_byte_range_is_exhaustive();
+    return gbc_test_result();
 }

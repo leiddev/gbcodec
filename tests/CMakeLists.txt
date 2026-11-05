@@ -1,24 +1,23 @@
-add_executable(test_utf8 test_utf8.c)
-target_link_libraries(test_utf8 PRIVATE gbcodec)
-gbcodec_enable_warnings(test_utf8)
-add_test(NAME test_utf8 COMMAND test_utf8)
+# Unit tests. Each test program is built as a separate executable and
+# registered with CTest; there is no third-party test framework.
 
-add_executable(test_utf16 test_utf16.c)
-target_link_libraries(test_utf16 PRIVATE gbcodec)
-gbcodec_enable_warnings(test_utf16)
-add_test(NAME test_utf16 COMMAND test_utf16)
+set(GBCODEC_C_TESTS
+    test_convert
+    test_gb2312
+    test_roundtrip
+    test_utf8
+    test_utf16)
 
-add_executable(test_gb2312 test_gb2312.c)
-target_link_libraries(test_gb2312 PRIVATE gbcodec)
-gbcodec_enable_warnings(test_gb2312)
-add_test(NAME test_gb2312 COMMAND test_gb2312)
+foreach(test_name IN LISTS GBCODEC_C_TESTS)
+    add_executable(${test_name} ${test_name}.c)
+    target_link_libraries(${test_name} PRIVATE gbcodec)
+    gbcodec_enable_warnings(${test_name})
+    add_test(NAME ${test_name} COMMAND ${test_name})
+endforeach()
 
-add_executable(test_string test_string.c)
-target_link_libraries(test_string PRIVATE gbcodec)
-gbcodec_enable_warnings(test_string)
-add_test(NAME test_string COMMAND test_string)
-
-add_executable(test_roundtrip test_roundtrip.c)
-target_link_libraries(test_roundtrip PRIVATE gbcodec)
-gbcodec_enable_warnings(test_roundtrip)
-add_test(NAME test_roundtrip COMMAND test_roundtrip)
+if(GBCODEC_BUILD_CXX)
+    add_executable(test_cpp test_cpp.cpp)
+    target_link_libraries(test_cpp PRIVATE gbcodec_cpp)
+    gbcodec_enable_warnings(test_cpp)
+    add_test(NAME test_cpp COMMAND test_cpp)
+endif()
