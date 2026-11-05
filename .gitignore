@@ -1,0 +1,53 @@
+# Build trees
+build/
+build-*/
+cmake-build-*/
+out/
+bin/
+lib/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+compile_commands.json
+install_manifest.txt
+
+# Visual Studio
+.vs/
+*.vcxproj
+*.vcxproj.filters
+*.sln
+*.user
+
+# Xcode / CLion
+.xcodeproj/
+.idea/
+
+# Test / coverage / benchmark output
+Testing/
+*.gcda
+*.gcno
+*.gcov
+coverage/
+*.profraw
+*.profdata
+
+# Object files and libraries
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.pdb
+*.ilk
+*.exp
+
+# Editors / OS
+.vscode/
+.DS_Store
+Thumbs.db
+*~

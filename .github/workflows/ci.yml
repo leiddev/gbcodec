@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64 (MSVC)
+            os: windows-latest
+            platform: x64
+            arch_flags: ""
+            sanitizers: "OFF"
+          - name: Windows x86 (MSVC)
+            os: windows-latest
+            platform: Win32
+            arch_flags: ""
+            sanitizers: "OFF"
+          - name: Linux x64 (GCC)
+            os: ubuntu-latest
+            platform: ""
+            arch_flags: ""
+            sanitizers: "OFF"
+          - name: Linux x86 (GCC -m32)
+            os: ubuntu-latest
+            platform: ""
+            arch_flags: "-m32"
+            sanitizers: "OFF"
+          - name: Linux x64 (GCC, ASan + UBSan)
+            os: ubuntu-latest
+            platform: ""
+            arch_flags: ""
+            sanitizers: "ON"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install 32-bit toolchain
+        if: matrix.arch_flags == '-m32'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib g++-multilib
+
+      - name: Configure
+        shell: bash
+        run: |
+          extra=()
+          if [ -n "${{ matrix.platform }}" ]; then
+            extra+=("-DCMAKE_GENERATOR_PLATFORM=${{ matrix.platform }}")
+          fi
+          if [ -n "${{ matrix.arch_flags }}" ]; then
+            extra+=("-DCMAKE_C_FLAGS=${{ matrix.arch_flags }}")
+            extra+=("-DCMAKE_CXX_FLAGS=${{ matrix.arch_flags }}")
+            extra+=("-DCMAKE_EXE_LINKER_FLAGS=${{ matrix.arch_flags }}")
+            extra+=("-DCMAKE_SHARED_LINKER_FLAGS=${{ matrix.arch_flags }}")
+          fi
+          if [ "${{ matrix.sanitizers }}" = "ON" ]; then
+            extra+=("-DCMAKE_C_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer")
+            extra+=("-DCMAKE_CXX_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer")
+            extra+=("-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined")
+            extra+=("-DCMAKE_SHARED_LINKER_FLAGS=-fsanitize=address,undefined")
+          fi
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug "${extra[@]}"
+
+      - name: Build
+        run: cmake --build build --config Debug --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Debug --output-on-failure

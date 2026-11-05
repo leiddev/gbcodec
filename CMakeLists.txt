@@ -1,28 +1,95 @@
-cmake_minimum_required(VERSION 3.10)
-project(unicode_utility)
+cmake_minimum_required(VERSION 3.15...3.31)
 
-# ---------------------------------------------------------------------------------------
-# Compiler config
-# ---------------------------------------------------------------------------------------
+project(gbcodec
+    VERSION 0.1.0
+    DESCRIPTION "GB2312 <-> Unicode (UTF-8/UTF-16) conversion library"
+    HOMEPAGE_URL "https://github.com/leiddev/gbcodec"
+    LANGUAGES C CXX)
 
+# ---------------------------------------------------------------------------
+# Options
+# ---------------------------------------------------------------------------
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+    set(GBCODEC_IS_TOP_LEVEL ON)
+else()
+    set(GBCODEC_IS_TOP_LEVEL OFF)
+endif()
 
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
+option(GBCODEC_BUILD_EXAMPLES "Build the example programs" ${GBCODEC_IS_TOP_LEVEL})
+option(GBCODEC_BUILD_TESTS "Build the unit tests" ${GBCODEC_IS_TOP_LEVEL})
+option(GBCODEC_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
-# ---------------------------------------------------------------------------------------
-# Build library
-# --------------------------------------------------------------------------------------
+# Single-configuration generators need an explicit default build type.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+        Debug Release RelWithDebInfo MinSizeRel)
+endif()
 
-aux_source_directory(src/ SRC_LIST)
-add_library(${PROJECT_NAME} STATIC ${SRC_LIST})
-target_include_directories(${PROJECT_NAME} PUBLIC inc)
+# ---------------------------------------------------------------------------
+# Warning helper
+# ---------------------------------------------------------------------------
+function(gbcodec_enable_warnings target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4 /permissive- /utf-8)
+        if(GBCODEC_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE /WX)
+        endif()
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+        if(GBCODEC_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE -Werror)
+        endif()
+    endif()
+endfunction()
 
-option(EXAMPLE "Build EXAMPLE" ON)
+# ---------------------------------------------------------------------------
+# Library: C core
+# ---------------------------------------------------------------------------
+add_library(gbcodec
+    src/unicode_utility.c
+    src/utf16_to_gb2312_table.c)
+add_library(gbcodec::gbcodec ALIAS gbcodec)
 
-if(EXAMPLE)
+target_include_directories(gbcodec PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
+    $<INSTALL_INTERFACE:include>)
 
-    add_executable(unicode_example examples/unicode_example.c)
-    target_link_libraries (unicode_example ${PROJECT_NAME})
+set_target_properties(gbcodec PROPERTIES
+    C_STANDARD 99
+    C_STANDARD_REQUIRED ON
+    C_EXTENSIONS OFF
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR})
 
-    add_executable(unicode_cpp_example examples/unicode_cpp_example.cpp)
-    target_link_libraries (unicode_cpp_example ${PROJECT_NAME})
+gbcodec_enable_warnings(gbcodec)
 
+# ---------------------------------------------------------------------------
+# Library: C++ convenience wrapper
+# ---------------------------------------------------------------------------
+add_library(gbcodec_cpp src/unicode_utility_cpp.cpp)
+add_library(gbcodec::gbcodec_cpp ALIAS gbcodec_cpp)
+
+target_link_libraries(gbcodec_cpp PUBLIC gbcodec)
+
+set_target_properties(gbcodec_cpp PROPERTIES
+    CXX_STANDARD 11
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR})
+
+gbcodec_enable_warnings(gbcodec_cpp)
+
+# ---------------------------------------------------------------------------
+# Tests and examples
+# ---------------------------------------------------------------------------
+if(GBCODEC_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
+if(GBCODEC_BUILD_EXAMPLES)
+    add_subdirectory(examples)
 endif()

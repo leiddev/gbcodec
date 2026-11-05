@@ -1,0 +1,136 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 15,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "windows-x64",
+      "displayName": "Windows x64 (Visual Studio)",
+      "inherits": "release",
+      "architecture": "x64"
+    },
+    {
+      "name": "windows-x86",
+      "displayName": "Windows x86 (Visual Studio)",
+      "inherits": "release",
+      "architecture": "Win32"
+    },
+    {
+      "name": "linux-x64",
+      "displayName": "Linux x64",
+      "inherits": "release"
+    },
+    {
+      "name": "linux-x86",
+      "displayName": "Linux x86 (-m32)",
+      "inherits": "release",
+      "cacheVariables": {
+        "CMAKE_C_FLAGS": "-m32",
+        "CMAKE_CXX_FLAGS": "-m32",
+        "CMAKE_EXE_LINKER_FLAGS": "-m32",
+        "CMAKE_SHARED_LINKER_FLAGS": "-m32"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "windows-x64",
+      "configurePreset": "windows-x64",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-x86",
+      "configurePreset": "windows-x86",
+      "configuration": "Release"
+    },
+    {
+      "name": "linux-x64",
+      "configurePreset": "linux-x64"
+    },
+    {
+      "name": "linux-x86",
+      "configurePreset": "linux-x86"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-x64",
+      "configurePreset": "windows-x64",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-x86",
+      "configurePreset": "windows-x86",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-x64",
+      "configurePreset": "linux-x64",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-x86",
+      "configurePreset": "linux-x86",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}
