@@ -1,112 +1,142 @@
-﻿/*
- * Leid 2023.8
+/*
+ * gbcodec - GB2312 <-> Unicode (UTF-8 / UTF-16) conversion library.
+ *
+ * Copyright (c) 2016-2026 leid
+ * SPDX-License-Identifier: ISC
  */
-#ifndef _UNICODE_UTILITY_H_
-#define _UNICODE_UTILITY_H_
+#ifndef UNICODE_UTILITY_H
+#define UNICODE_UTILITY_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
-extern "C"{
+extern "C" {
 #endif
 
 /**
- * @brief utf8编码转unicode字符集(usc4)，最大支持4字节utf8编码，(4字节以上在中日韩文中为生僻字)
- * @param *utf8 utf8变长编码字节集1~4个字节
- * @param *unicode utf8编码转unicode字符集结果，最大4个字节，返回的字节序与utf8编码序一致
- * @return length 0：utf8解码异常，others：本次utf8编码长度
+ * Decode one UTF-8 encoded code point.
+ *
+ * @param utf8      Pointer to at least 4 readable bytes (a NUL terminator is
+ *                  enough to reject a truncated sequence).
+ * @param unicode   Receives the decoded code point. It is left untouched when
+ *                  decoding fails.
+ * @return Number of bytes consumed (1..4), or -1 on invalid input.
  */
 int32_t UTF8ToUnicode(uint8_t *utf8, uint32_t *unicode);
 
-/** 
- * UnicodeToUTF8 - convert unicode char to UTF-8 char 
- * @param *Unicodevalue: a UNICODE character 
- * @param *utf8dst: a buffer to contain a utf-8 characters 
- * 
- * @return number of bytes for the utf-8 sequence, supports up to 4 bytes of UTF8, returns -1 if require more than 4 bytes.
- */ 
-int UnicodeToUTF8(unsigned long Unicodevalue, unsigned char *utf8dst);
-
+/**
+ * Encode one code point as UTF-8.
+ *
+ * @param unicodevalue Code point in the range U+0000..U+10FFFF, excluding the
+ *                     surrogate range U+D800..U+DFFF.
+ * @param utf8dst      Buffer of at least 4 bytes.
+ * @return Number of bytes written (1..4), or 0 when the code point is invalid.
+ */
+int32_t UnicodeToUTF8(uint32_t unicodevalue, uint8_t *utf8dst);
 
 /**
- * @brief 4字节unicode(usc4)字符集转utf16编码
- * @param unicode unicode字符值
- * @param *utf16 utf16编码结果
- * @return utf16长度，(2字节)单位
+ * Encode one code point as UTF-16.
+ *
+ * @param unicode Code point in the range U+0000..U+10FFFF, excluding the
+ *                surrogate range U+D800..U+DFFF.
+ * @param utf16   Buffer of at least 2 elements.
+ * @return Number of UTF-16 code units written (1 or 2), or -1 on invalid input.
  */
 int32_t UnicodeToUTF16(uint32_t unicode, uint16_t *utf16);
 
-
-/** 
- * UTF16toUnicode - Converts UTF16 multiword character to Unicode, supports up to 4 bytes of UTF8. 
- * @param *utf16MW: UTF16 multiword character
- * @param *outunicode: a unicode character output 
- * 
- * @return the number of words this UTF16 character was composed of. Returns -1 if utf16MW=NULL.
- */ 
-int UTF16toUnicode(unsigned short *utf16MW, unsigned int *outunicode);
-
-
 /**
- * @brief 2字节utf16编码转gb2312编码
- * @param utf16 utf16编码
- * @param *gb2812 gb2312编码结果
- * @return gb2812长度，字节为单位
+ * Decode one UTF-16 code point.
+ *
+ * @param utf16      Pointer to at least 2 readable elements.
+ * @param outunicode Receives the decoded code point. It is left untouched when
+ *                   decoding fails.
+ * @return Number of code units consumed (1 or 2), or -1 on invalid input
+ *         (lone or malformed surrogate pair).
  */
-int32_t UTF16ToGB2312(uint16_t utf16, uint16_t *gb2812);
-
+int32_t UTF16toUnicode(const uint16_t *utf16, uint32_t *outunicode);
 
 /**
- * @brief gb2312编码转2字节utf16编码
- * @param utf16 utf16编码
- * @param *gb2812 gb2312编码结果
- * @return gb2812长度，字节为单位
+ * Encode a BMP code point as GB2312.
+ *
+ * NOTE: @p gb2312 is a two-byte buffer, not a numeric code. The bytes are
+ * stored in stream order (lead byte first). Inspect them through a
+ * `const uint8_t *` view, e.g. `((const uint8_t *)&buffer)[0]`.
+ *
+ * @param utf16  Code point (must be in the BMP).
+ * @param gb2312 Two-byte output buffer. For ASCII only the first byte is
+ *               written; the second byte is left untouched.
+ * @return Number of bytes written (1 or 2), or -1 when the code point has no
+ *         GB2312 mapping.
+ */
+int32_t UTF16ToGB2312(uint16_t utf16, uint16_t *gb2312);
+
+/**
+ * Decode GB2312 to a BMP code point.
+ *
+ * NOTE: @p gb2312 is a two-byte buffer in stream order (lead byte first), as
+ * produced by UTF16ToGB2312(). Do not pass a numeric literal.
+ *
+ * @param gb2312 Two-byte GB2312 buffer.
+ * @param utf16  Receives the decoded code point.
+ * @return Number of bytes consumed (1 or 2), or -1 on invalid input.
  */
 int32_t GB2312ToUTF16(uint16_t gb2312, uint16_t *utf16);
 
-
 /**
- * @brief utf8编码转gb2312编码
- * @param *utf8 utf8变长编码字节集(1~4个字节)
- * @param *out_utf8_size 输出当前转换utf8字符的utf8编码长度(1~4个字节)
- * @param *gb2812 gb2312编码结果
- * @return gb2812长度，字节为单位
+ * Convert one UTF-8 character to GB2312.
+ *
+ * @param utf8           Pointer to at least 4 readable bytes.
+ * @param out_utf8_size  Optional. Receives the number of UTF-8 bytes consumed.
+ * @param gb2312         Two-byte output buffer in stream order.
+ * @return Number of GB2312 bytes written (1 or 2), or -1 on invalid or
+ *         unmappable input.
  */
-int32_t UTF8ToGB2312(uint8_t *utf8, uint32_t *out_utf8_size, uint16_t *gb2812);
-
+int32_t UTF8ToGB2312(uint8_t *utf8, uint32_t *out_utf8_size, uint16_t *gb2312);
 
 /**
- * @brief gb2312编码转utf8编码
- * @param *gb2312 gb2312编码字节集(1~2个字节)
- * @param *out_gb2312_size 输出当前转换gb2312字符的gb2312编码长度(1-2个字节)
- * @param *utf8 utf8编码结果
- * @return utf8长度，字节为单位
+ * Convert one GB2312 character to UTF-8.
+ *
+ * @param gb2312           Two-byte GB2312 buffer in stream order.
+ * @param out_gb2312_size  Optional. Receives the number of GB2312 bytes
+ *                         consumed (1 or 2).
+ * @param utf8             Buffer of at least 4 bytes.
+ * @return Number of UTF-8 bytes written (1..3), or -1 on invalid input.
  */
 int32_t GB2312ToUTF8(uint16_t *gb2312, uint32_t *out_gb2312_size, uint8_t *utf8);
 
+/**
+ * Convert a NUL-terminated UTF-8 string to a NUL-terminated GB2312 string.
+ *
+ * Conversion stops at the first invalid or unmappable character, or when the
+ * output buffer cannot hold the next character plus the terminator. The output
+ * is always terminated when @p gb2312_str_buff_size is greater than zero.
+ *
+ * @param utf8_str              Source string (NUL-terminated).
+ * @param gb2312_str            Output buffer.
+ * @param gb2312_str_buff_size  Capacity of the output buffer in bytes.
+ * @return Number of bytes written, excluding the terminator.
+ */
+int32_t UTF8ToGB2312Str(uint8_t *utf8_str, uint8_t *gb2312_str,
+                        size_t gb2312_str_buff_size);
 
 /**
- * @brief utf8编码字符串转gb2312编码字符串
- * @param *utf8_str utf8编码字符串(\0结尾)
- * @param *gb2312_str 输出gb2312编码字符串(\0结尾)
- * @param *gb2312_str_buff_size 输出缓冲区大小
- * @return gb2312编码字符串长度，字节为单位
+ * Convert a NUL-terminated GB2312 string to a NUL-terminated UTF-8 string.
+ *
+ * Conversion stops at the first invalid character, or when the output buffer
+ * cannot hold the next character plus the terminator. The output is always
+ * terminated when @p utf8_str_buff_size is greater than zero.
+ *
+ * @param gb2312_str          Source string (NUL-terminated).
+ * @param utf8_str            Output buffer.
+ * @param utf8_str_buff_size  Capacity of the output buffer in bytes.
+ * @return Number of bytes written, excluding the terminator.
  */
-int32_t UTF8ToGB2312Str(uint8_t *utf8_str, uint8_t *gb2312_str, uint32_t gb2312_str_buff_size);
-
-
-/**
- * @brief gb2312编码字符串转utf8编码字符串
- * @param *gb2312 gb2312编码字符串(\0结尾)
- * @param *utf8 输出utf8编码字符串(\0结尾)
- * @param *utf8_str_buff_size 输出缓冲区大小
- * @return utf8编码字符串长度，字节为单位
- */
-int32_t GB2312ToUTF8Str(uint8_t *gb2312_str, uint8_t *utf8_str, uint32_t utf8_str_buff_size);
-
+int32_t GB2312ToUTF8Str(uint8_t *gb2312_str, uint8_t *utf8_str,
+                        size_t utf8_str_buff_size);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // !_UNICODE_UTILITY_H_
+#endif /* UNICODE_UTILITY_H */

@@ -4,7 +4,7 @@ project(gbcodec
     VERSION 0.1.0
     DESCRIPTION "GB2312 <-> Unicode (UTF-8/UTF-16) conversion library"
     HOMEPAGE_URL "https://github.com/leiddev/gbcodec"
-    LANGUAGES C CXX)
+    LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Options
@@ -16,9 +16,14 @@ else()
 endif()
 
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
+option(GBCODEC_BUILD_CXX "Build the C++ convenience wrapper" ${GBCODEC_IS_TOP_LEVEL})
 option(GBCODEC_BUILD_EXAMPLES "Build the example programs" ${GBCODEC_IS_TOP_LEVEL})
 option(GBCODEC_BUILD_TESTS "Build the unit tests" ${GBCODEC_IS_TOP_LEVEL})
 option(GBCODEC_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+
+if(GBCODEC_BUILD_CXX)
+    enable_language(CXX)
+endif()
 
 # Single-configuration generators need an explicit default build type.
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -37,7 +42,8 @@ function(gbcodec_enable_warnings target)
             target_compile_options(${target} PRIVATE /WX)
         endif()
     else()
-        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+        target_compile_options(${target} PRIVATE
+            -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion)
         if(GBCODEC_WARNINGS_AS_ERRORS)
             target_compile_options(${target} PRIVATE -Werror)
         endif()
@@ -68,19 +74,21 @@ gbcodec_enable_warnings(gbcodec)
 # ---------------------------------------------------------------------------
 # Library: C++ convenience wrapper
 # ---------------------------------------------------------------------------
-add_library(gbcodec_cpp src/unicode_utility_cpp.cpp)
-add_library(gbcodec::gbcodec_cpp ALIAS gbcodec_cpp)
+if(GBCODEC_BUILD_CXX)
+    add_library(gbcodec_cpp src/unicode_utility_cpp.cpp)
+    add_library(gbcodec::gbcodec_cpp ALIAS gbcodec_cpp)
 
-target_link_libraries(gbcodec_cpp PUBLIC gbcodec)
+    target_link_libraries(gbcodec_cpp PUBLIC gbcodec)
 
-set_target_properties(gbcodec_cpp PROPERTIES
-    CXX_STANDARD 11
-    CXX_STANDARD_REQUIRED ON
-    CXX_EXTENSIONS OFF
-    VERSION ${PROJECT_VERSION}
-    SOVERSION ${PROJECT_VERSION_MAJOR})
+    set_target_properties(gbcodec_cpp PROPERTIES
+        CXX_STANDARD 11
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+        VERSION ${PROJECT_VERSION}
+        SOVERSION ${PROJECT_VERSION_MAJOR})
 
-gbcodec_enable_warnings(gbcodec_cpp)
+    gbcodec_enable_warnings(gbcodec_cpp)
+endif()
 
 # ---------------------------------------------------------------------------
 # Tests and examples

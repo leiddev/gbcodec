@@ -73,6 +73,7 @@ ctest --preset linux-x64
 | 选项 | 默认值 | 说明 |
 | --- | --- | --- |
 | `BUILD_SHARED_LIBS` | `OFF` | 构建共享库 |
+| `GBCODEC_BUILD_CXX` | 顶层项目时 `ON` | 构建 C++ 封装；作为子项目时默认关闭，避免强制依赖 C++ 编译器 |
 | `GBCODEC_BUILD_EXAMPLES` | 顶层项目时 `ON` | 构建示例程序 |
 | `GBCODEC_BUILD_TESTS` | 顶层项目时 `ON` | 构建单元测试 |
 | `GBCODEC_WARNINGS_AS_ERRORS` | `OFF` | 把编译告警当作错误 |

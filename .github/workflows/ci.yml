@@ -76,7 +76,8 @@ jobs:
             extra+=("-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined")
             extra+=("-DCMAKE_SHARED_LINKER_FLAGS=-fsanitize=address,undefined")
           fi
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug "${extra[@]}"
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
+            -DGBCODEC_WARNINGS_AS_ERRORS=ON "${extra[@]}"
 
       - name: Build
         run: cmake --build build --config Debug --parallel
