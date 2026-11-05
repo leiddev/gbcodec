@@ -102,6 +102,44 @@ static void test_decode_invalid(void)
     CHECK_EQ(code_point, 0xFFFF);
 }
 
+static void test_known_mappings(void)
+{
+    uint16_t buffer = 0;
+    uint16_t code_point = 0;
+
+    /* 0xB0A1 is the first GB2312 hanzi, U+554A. */
+    buffer = 0;
+    ((unsigned char *)&buffer)[0] = 0xB0;
+    ((unsigned char *)&buffer)[1] = 0xA1;
+    CHECK_EQ(GB2312ToUTF16(buffer, &code_point), 2);
+    CHECK_EQ(code_point, 0x554A);
+    CHECK_EQ(UTF16ToGB2312(0x554Au, &buffer), 2);
+    CHECK_EQ(((const unsigned char *)&buffer)[0], 0xB0);
+    CHECK_EQ(((const unsigned char *)&buffer)[1], 0xA1);
+}
+
+static void test_gbk_only_codes_are_rejected(void)
+{
+    uint16_t buffer = 0;
+    uint16_t code_point = 0;
+
+    /* U+20AC (euro sign) was added by GBK, not GB2312. */
+    CHECK_EQ(UTF16ToGB2312(0x20ACu, &buffer), -1);
+    /* Small roman numerals are a GBK extension as well. */
+    CHECK_EQ(UTF16ToGB2312(0x2170u, &buffer), -1);
+
+    buffer = 0;
+    ((unsigned char *)&buffer)[0] = 0xA2;
+    ((unsigned char *)&buffer)[1] = 0xE3;
+    CHECK_EQ(GB2312ToUTF16(buffer, &code_point), -1);
+
+    /* Legacy tables mapped these unassigned slots into the Private Use Area. */
+    buffer = 0;
+    ((unsigned char *)&buffer)[0] = 0xD7;
+    ((unsigned char *)&buffer)[1] = 0xFA;
+    CHECK_EQ(GB2312ToUTF16(buffer, &code_point), -1);
+}
+
 static void test_utf8_bridge(void)
 {
     uint16_t buffer = 0;
@@ -144,6 +182,8 @@ int main(void)
     test_encode_unmappable();
     test_decode();
     test_decode_invalid();
+    test_known_mappings();
+    test_gbk_only_codes_are_rejected();
     test_utf8_bridge();
     test_utf8_bridge_errors();
     TEST_REPORT();

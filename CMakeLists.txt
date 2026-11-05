@@ -55,7 +55,7 @@ endfunction()
 # ---------------------------------------------------------------------------
 add_library(gbcodec
     src/unicode_utility.c
-    src/utf16_to_gb2312_table.c)
+    src/detail/gb2312_table.c)
 add_library(gbcodec::gbcodec ALIAS gbcodec)
 
 target_include_directories(gbcodec PUBLIC

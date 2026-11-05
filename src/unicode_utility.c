@@ -9,7 +9,7 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "utf16_to_gb2312_table.h"
+#include "detail/gb2312_table.h"
 
 #define GBC_ASCII_LIMIT 0x80u
 #define GBC_SURROGATE_FIRST 0xD800u
@@ -31,30 +31,45 @@ static int gbc_is_gb2312_trail(uint8_t byte)
     return byte >= 0xA1u && byte <= 0xFEu;
 }
 
-/* Linear lookup by Unicode code point. Replaced by a sorted index later. */
+/*
+ * O(log n) lookup by code point: binary search the sorted table.
+ * Returns 0 when the code point has no GB2312 mapping.
+ */
 static uint16_t gbc_lookup_by_code_point(uint16_t code_point)
 {
-    uint32_t index;
+    uint32_t low = 0;
+    uint32_t high = GBC_TABLE_ENTRIES;
 
-    for (index = 0; index < MAX_UTF16_SIZE; ++index) {
-        if (utf16_to_gb2312_table[index][0] == code_point) {
-            return utf16_to_gb2312_table[index][1];
+    while (low < high) {
+        const uint32_t middle = low + (high - low) / 2u;
+        const uint16_t candidate = gbc_detail_code_point_order[middle].code_point;
+
+        if (candidate < code_point) {
+            low = middle + 1u;
+        } else {
+            high = middle;
         }
+    }
+
+    if (low < GBC_TABLE_ENTRIES && gbc_detail_code_point_order[low].code_point == code_point) {
+        return gbc_detail_code_point_order[low].gb2312;
     }
     return 0;
 }
 
-/* Linear lookup by GB2312 code. Replaced by a direct index later. */
+/*
+ * O(1) lookup by GB2312 code: index the flat table directly.
+ * The caller must have validated the lead and trail byte ranges.
+ * Returns 0 when the code is not assigned.
+ */
 static uint16_t gbc_lookup_by_gb2312(uint16_t gb2312)
 {
-    uint32_t index;
+    const uint32_t lead = (uint32_t)((gb2312 >> 8) & 0xFFu);
+    const uint32_t trail = (uint32_t)(gb2312 & 0xFFu);
+    const uint32_t index = (lead - GBC_GB2312_FIRST_LEAD) * GBC_GB2312_TRAILS_PER_LEAD +
+                           (trail - GBC_GB2312_FIRST_TRAIL);
 
-    for (index = 0; index < MAX_UTF16_SIZE; ++index) {
-        if (utf16_to_gb2312_table[index][1] == gb2312) {
-            return utf16_to_gb2312_table[index][0];
-        }
-    }
-    return 0;
+    return gbc_detail_gb2312_index[index];
 }
 
 /*

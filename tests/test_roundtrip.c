@@ -39,7 +39,8 @@ static void test_two_byte_space(void)
     }
 
     printf("mapped two-byte codes: %d\n", mapped);
-    CHECK(mapped >= 7400);
+    /* 6763 hanzi plus 682 symbols. */
+    CHECK_EQ(mapped, 7445);
 }
 
 static void test_ascii_space(void)
