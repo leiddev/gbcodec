@@ -205,7 +205,14 @@ pkg-config --cflags --libs gbcodec
 - [x] 补齐测试并修复内存安全与正确性缺陷
 - [x] 重建码表，改为 O(1) / O(log n) 查找
 - [x] 重新设计并重命名公开 API（`gbcodec` / `gbc_` 前缀 / C++17 封装）
-- [ ] 打包、文档与 1.0.0 发布
+- [x] 打包、文档与 1.0.0 发布
+
+## 文档
+
+- [docs/naming.md](docs/naming.md)：库、命名空间、函数与变量的命名约定。
+- [docs/compatibility.md](docs/compatibility.md)：GB2312 的覆盖范围，以及与
+  GBK / CP936 的差异和无法映射时的处理方式。
+- [CHANGELOG.md](CHANGELOG.md)：版本变更与历史接口的迁移对照。
 
 ## 参与贡献
 

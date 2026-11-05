@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15...3.31)
 
 project(gbcodec
-    VERSION 0.1.0
+    VERSION 1.0.0
     DESCRIPTION "GB2312 <-> Unicode (UTF-8/UTF-16) conversion library"
     HOMEPAGE_URL "https://github.com/leiddev/gbcodec"
     LANGUAGES C)
