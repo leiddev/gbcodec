@@ -114,3 +114,30 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build -C Debug --output-on-failure
+
+  package:
+    name: Install and consume the package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and install
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+            -DGBCODEC_BUILD_TESTS=OFF -DGBCODEC_BUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$PWD/stage"
+          cmake --build build --parallel
+          cmake --install build
+
+      - name: pkg-config metadata
+        run: |
+          export PKG_CONFIG_PATH="$PWD/stage/lib/pkgconfig"
+          pkg-config --modversion gbcodec
+          pkg-config --cflags --libs gbcodec
+
+      - name: Build a consumer with find_package
+        run: |
+          cmake -S tests/package -B consumer -DCMAKE_PREFIX_PATH="$PWD/stage"
+          cmake --build consumer --parallel
+          ctest --test-dir consumer --output-on-failure

@@ -141,6 +141,50 @@ ctest --preset linux-x64
 | `GBCODEC_BUILD_TESTS` | 顶层项目时 `ON` | 构建单元测试 |
 | `GBCODEC_WARNINGS_AS_ERRORS` | `OFF` | 把编译告警当作错误 |
 
+## 安装与在其它项目中使用
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/gbcodec
+cmake --build build --parallel
+cmake --install build
+```
+
+安装内容：
+
+- `include/gbcodec/`：公开头文件（含生成的 `version.h`）。
+- `lib/libgbcodec.*`（共享构建时为 `bin/*.dll` 加 `lib/*.lib`）。
+- `lib/cmake/gbcodec/`：CMake 包配置，支持 `find_package(gbcodec CONFIG)`。
+- `lib/pkgconfig/gbcodec.pc`：pkg-config 元数据。
+
+### CMake
+
+```cmake
+find_package(gbcodec CONFIG REQUIRED)
+
+target_link_libraries(my_app PRIVATE gbcodec::gbcodec)      # C 接口
+target_link_libraries(my_app PRIVATE gbcodec::gbcodec_cpp)  # 加上 C++17 封装
+```
+
+注意：`gbcodec::gbcodec_cpp` 只有在构建时开启 `GBCODEC_BUILD_CXX` 才会提供，
+可通过 `gbcodec_CXX_AVAILABLE` 变量判断。
+
+### 作为子目录嵌入
+
+```cmake
+add_subdirectory(third_party/gbcodec)
+
+target_link_libraries(my_app PRIVATE gbcodec::gbcodec)
+```
+
+作为子项目时，`GBCODEC_BUILD_TESTS` / `GBCODEC_BUILD_EXAMPLES` /
+`GBCODEC_BUILD_CXX` 默认关闭，不会给宿主项目引入额外负担。
+
+### pkg-config
+
+```bash
+pkg-config --cflags --libs gbcodec
+```
+
 ## 目录结构
 
 ```text

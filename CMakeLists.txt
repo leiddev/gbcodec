@@ -114,6 +114,58 @@ if(GBCODEC_BUILD_CXX)
 endif()
 
 # ---------------------------------------------------------------------------
+# Installation and package configuration
+# ---------------------------------------------------------------------------
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+install(TARGETS gbcodec
+    EXPORT gbcodecTargets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+if(GBCODEC_BUILD_CXX)
+    install(TARGETS gbcodec_cpp EXPORT gbcodecTargets)
+endif()
+
+install(DIRECTORY include/gbcodec
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING
+    PATTERN "*.h"
+    PATTERN "*.hpp")
+
+# version.h is generated into the build tree.
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/gbcodec/version.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/gbcodec)
+
+install(EXPORT gbcodecTargets
+    NAMESPACE gbcodec::
+    FILE gbcodec-targets.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/gbcodec)
+
+configure_package_config_file(
+    cmake/gbcodec-config.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/gbcodec-config.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/gbcodec)
+
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/gbcodec-config-version.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/gbcodec-config.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/gbcodec-config-version.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/gbcodec)
+
+configure_file(cmake/gbcodec.pc.in ${CMAKE_CURRENT_BINARY_DIR}/gbcodec.pc @ONLY)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/gbcodec.pc
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+
+# ---------------------------------------------------------------------------
 # Tests and examples
 # ---------------------------------------------------------------------------
 if(GBCODEC_BUILD_TESTS)

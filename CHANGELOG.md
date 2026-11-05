@@ -38,6 +38,11 @@
   `version.h` 版本宏。
 - 单元测试重写为五个 C 测试程序加一个 C++ 测试程序，覆盖非法序列、截断、
   缓冲区边界矩阵、内嵌 NUL、内嵌容量、全码表往返等场景。
+- 安装规则与包配置：支持 `find_package(gbcodec CONFIG)`（导出
+  `gbcodec::gbcodec` 与 `gbcodec::gbcodec_cpp`），并提供 `gbcodec.pc`
+  pkg-config 元数据。
+- `tests/package` 消费者工程，用于验证安装后的头文件、库与包配置。
+- CI 增加「构建 → 安装 → pkg-config → 消费者构建」的完整检查。
 
 ### 变更
 
