@@ -5,6 +5,14 @@
 
 ## [Unreleased]
 
+### 变更
+
+- C++ 封装的最低标准从 C++17 降到 C++11：参数类型改为 `gbcodec::string_view`，
+  C++17 下它是 `std::string_view` 的别名，C++11 下退回到等价的只读视图类，
+  源码无需区分；`gbcodec_cpp` 的 CMake usage requirement 相应改为 `cxx_std_11`。
+- 新增 `test_cpp11`（以 C++11 编译）并用 C++11 消费者验证安装包，CI 同时覆盖
+  两种标准模式。
+
 ### 修复
 
 - C++ 封装：默认构造的 `std::string_view`（`data()` 为 `nullptr`）现在与空字符串

@@ -16,7 +16,7 @@ else()
 endif()
 
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
-option(GBCODEC_BUILD_CXX "Provide the C++17 convenience wrapper" ${GBCODEC_IS_TOP_LEVEL})
+option(GBCODEC_BUILD_CXX "Provide the C++ convenience wrapper" ${GBCODEC_IS_TOP_LEVEL})
 option(GBCODEC_BUILD_EXAMPLES "Build the example programs" ${GBCODEC_IS_TOP_LEVEL})
 option(GBCODEC_BUILD_TESTS "Build the unit tests" ${GBCODEC_IS_TOP_LEVEL})
 option(GBCODEC_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
@@ -99,14 +99,14 @@ set_target_properties(gbcodec PROPERTIES
 gbcodec_enable_warnings(gbcodec)
 
 # ---------------------------------------------------------------------------
-# Library: C++17 convenience wrapper (header-only)
+# Library: C++ convenience wrapper (header-only, C++11 or later)
 # ---------------------------------------------------------------------------
 if(GBCODEC_BUILD_CXX)
     add_library(gbcodec_cpp INTERFACE)
     add_library(gbcodec::gbcodec_cpp ALIAS gbcodec_cpp)
 
     target_link_libraries(gbcodec_cpp INTERFACE gbcodec)
-    target_compile_features(gbcodec_cpp INTERFACE cxx_std_17)
+    target_compile_features(gbcodec_cpp INTERFACE cxx_std_11)
 
     if(MSVC)
         target_compile_options(gbcodec_cpp INTERFACE /utf-8)

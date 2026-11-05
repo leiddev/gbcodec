@@ -2,7 +2,7 @@
 
 include("${CMAKE_CURRENT_LIST_DIR}/gbcodec-targets.cmake")
 
-# The C++17 wrapper is optional; report it to the consumer.
+# The C++ wrapper is optional; report it to the consumer.
 if(TARGET gbcodec::gbcodec_cpp)
     set(gbcodec_CXX_AVAILABLE TRUE)
 else()

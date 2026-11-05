@@ -1,5 +1,5 @@
 /*
- * gbcodec - installed-package smoke test (C++17).
+ * gbcodec - installed-package smoke test (C++).
  *
  * Copyright (c) 2016-2026 leid
  * SPDX-License-Identifier: ISC

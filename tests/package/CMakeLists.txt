@@ -13,6 +13,11 @@ if(gbcodec_CXX_AVAILABLE)
     enable_language(CXX)
     add_executable(consumer_cpp main.cpp)
     target_link_libraries(consumer_cpp PRIVATE gbcodec::gbcodec_cpp)
+    # Check that the wrapper also works for a C++11 consumer.
+    set_target_properties(consumer_cpp PROPERTIES
+        CXX_STANDARD 11
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF)
 endif()
 
 enable_testing()

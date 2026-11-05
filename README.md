@@ -9,7 +9,8 @@ Windows 与 Linux 上得到完全一致的结果。
 
 ## 特性
 
-- 纯 C99 实现，可选 C++17 封装，无第三方依赖。
+- 纯 C99 实现，可选 C++ 封装（C++11 起，C++17 下自动使用 `std::string_view`），
+  无第三方依赖。
 - 转换结果只取决于码表，与操作系统区域设置（locale / code page）无关。
 - 显式长度与容量参数，不使用全局状态，线程安全。
 - 同时提供单字符（码点级）与整串（缓冲区级）转换接口。
@@ -57,7 +58,7 @@ int main(void)
 }
 ```
 
-C++（可选，需 C++17）：
+C++（可选，C++11 起）：
 
 ```cpp
 #include <gbcodec/gbcodec.hpp>
@@ -82,7 +83,7 @@ int main()
 | `<gbcodec/gb2312.h>` | `gbc_gb2312_decode` / `gbc_gb2312_encode` |
 | `<gbcodec/convert.h>` | `gbc_utf8_to_gb2312`、`gbc_gb2312_to_utf8` 及其 `_z` / `_capacity` 变体 |
 | `<gbcodec/status.h>` | `gbc_status` 错误码与 `gbc_status_string` |
-| `<gbcodec/gbcodec.hpp>` | C++17 封装 `gbcodec::to_gb2312` 等（头文件形式） |
+| `<gbcodec/gbcodec.hpp>` | C++ 封装 `gbcodec::to_gb2312` 等（头文件形式，C++11 起；C++17 下自动使用 `std::string_view`） |
 
 约定：
 
@@ -104,7 +105,8 @@ int main()
 
 ## 构建
 
-需要 CMake 3.15 及以上版本，以及一个支持 C99 / C++17 的编译器。
+需要 CMake 3.15 及以上版本，以及一个支持 C99 的 C 编译器（C++ 封装另需 C++11
+及以上的编译器）。
 
 ```bash
 # 配置 + 构建 + 测试
@@ -136,7 +138,7 @@ ctest --preset linux-x64
 | 选项 | 默认值 | 说明 |
 | --- | --- | --- |
 | `BUILD_SHARED_LIBS` | `OFF` | 构建共享库；只导出标记为 `GBC_API` 的符号 |
-| `GBCODEC_BUILD_CXX` | 顶层项目时 `ON` | 提供 C++17 封装；作为子项目时默认关闭，避免强制依赖 C++ 编译器 |
+| `GBCODEC_BUILD_CXX` | 顶层项目时 `ON` | 提供 C++ 封装（C++11 起）；作为子项目时默认关闭，避免强制依赖 C++ 编译器 |
 | `GBCODEC_BUILD_EXAMPLES` | 顶层项目时 `ON` | 构建示例程序 |
 | `GBCODEC_BUILD_TESTS` | 顶层项目时 `ON` | 构建单元测试 |
 | `GBCODEC_WARNINGS_AS_ERRORS` | `OFF` | 把编译告警当作错误 |
@@ -162,7 +164,7 @@ cmake --install build
 find_package(gbcodec CONFIG REQUIRED)
 
 target_link_libraries(my_app PRIVATE gbcodec::gbcodec)      # C 接口
-target_link_libraries(my_app PRIVATE gbcodec::gbcodec_cpp)  # 加上 C++17 封装
+target_link_libraries(my_app PRIVATE gbcodec::gbcodec_cpp)  # 加上 C++ 封装
 ```
 
 注意：`gbcodec::gbcodec_cpp` 只有在构建时开启 `GBCODEC_BUILD_CXX` 才会提供，
@@ -189,7 +191,7 @@ pkg-config --cflags --libs gbcodec
 
 ```text
 .
-├─ include/gbcodec/  公开头文件（C 接口 + C++17 封装）
+├─ include/gbcodec/  公开头文件（C 接口 + C++ 封装）
 ├─ src/              实现
 │  └─ detail/        生成的 GB2312 码表（不对外公开）
 ├─ examples/         示例程序
@@ -204,7 +206,7 @@ pkg-config --cflags --libs gbcodec
 - [x] 建立仓库、导入基线、搭建 CI（Windows / Linux，x86 / x64）
 - [x] 补齐测试并修复内存安全与正确性缺陷
 - [x] 重建码表，改为 O(1) / O(log n) 查找
-- [x] 重新设计并重命名公开 API（`gbcodec` / `gbc_` 前缀 / C++17 封装）
+- [x] 重新设计并重命名公开 API（`gbcodec` / `gbc_` 前缀 / C++ 封装）
 - [x] 打包、文档与 1.0.0 发布
 
 ## 文档

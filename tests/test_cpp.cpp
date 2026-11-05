@@ -1,5 +1,5 @@
 /*
- * gbcodec - tests for the C++17 wrapper.
+ * gbcodec - tests for the C++ wrapper.
  *
  * Copyright (c) 2016-2026 leid
  * SPDX-License-Identifier: ISC
@@ -9,7 +9,15 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+
+#if defined(GBCODEC_USE_STD_STRING_VIEW)
 #include <string_view>
+#include <type_traits>
+
+/* In C++17 mode the wrapper must expose the standard view verbatim. */
+static_assert(std::is_same<gbcodec::string_view, std::string_view>::value,
+              "gbcodec::string_view must alias std::string_view in C++17");
+#endif
 
 namespace {
 
@@ -89,7 +97,7 @@ void test_empty_strings()
  */
 void test_default_constructed_view()
 {
-    const std::string_view empty_view;
+    const gbcodec::string_view empty_view;
     std::string output = "stale";
     gbc_status status = GBC_E_TRUNCATED;
 

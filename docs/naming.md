@@ -10,7 +10,7 @@
 | --- | --- |
 | `gbcodec` | 库名、CMake 项目名、CMake 目标名、pkg-config 包名 |
 | `gbcodec::gbcodec` | C 库的 CMake 别名，供 `find_package` / `add_subdirectory` 使用 |
-| `gbcodec_cpp` / `gbcodec::gbcodec_cpp` | C++17 封装的接口库（header-only） |
+| `gbcodec_cpp` / `gbcodec::gbcodec_cpp` | C++ 封装的接口库（header-only，C++11 起） |
 | `<gbcodec/...>` | 公开头文件的包含路径 |
 
 选择 `gbcodec` 的理由：
@@ -104,6 +104,8 @@ gbc_<领域>_<动作>[_<变体>]
 - 表示「可能失败」的两个版本成对出现：抛异常版本与 `try_` 前缀版本。
 - 异常类型为 `gbcodec::error`，由 `std::runtime_error` 派生，并暴露
   `status()` 返回 `gbc_status`。
+- 字符串参数类型统一为 `gbcodec::string_view`：C++17 下它是 `std::string_view`
+  的别名，C++11 下是等价的只读视图类，调用方无需区分两种标准。
 - 头文件形式（header-only）发布，不引入额外的 ABI。
 
 ## 与历史命名的对照

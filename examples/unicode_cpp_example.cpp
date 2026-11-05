@@ -9,11 +9,10 @@
 #include <cstdio>
 #include <iostream>
 #include <string>
-#include <string_view>
 
 int main()
 {
-    const std::string_view utf8_text = "\xE4\xB8\xAD\xE6\x96\x87" "abc"; /* 中文abc */
+    const std::string utf8_text = "\xE4\xB8\xAD\xE6\x96\x87" "abc"; /* 中文abc */
 
     try {
         const std::string gb2312 = gbcodec::to_gb2312(utf8_text);
